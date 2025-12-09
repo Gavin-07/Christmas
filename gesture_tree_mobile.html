@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hand Gesture Christmas Tree · Mobile</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <style>
+    :root {
+      --tree-hue: 140;
+      --tree-scale: 1.1;
+      --tree-rotate: 0deg;
+      --snow-speed: 18s;
+      --glow-strength: 0.5;
+      --accent-hue: 35;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro", "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #202a44 0%, #050814 55%, #020308 100%);
+      color: #f5f5f5;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app {
+      position: relative;
+      width: 100%;
+      max-width: 1200px;
+      height: 100%;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: 14px;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
+        padding: 10px;
+      }
+    }
+
+    .scene {
+      position: relative;
+      border-radius: 24px;
+      overflow: hidden;
+      background: radial-gradient(circle at 20% 0%, #2b3b69 0%, #050814 60%);
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.7),
+        0 0 80px rgba(90, 180, 255, 0.2);
+    }
+
+    .scene-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tree-wrap {
+      position: relative;
+      width: min(260px, 60vw);
+      height: min(360px, 75vw);
+      transform-origin: center bottom;
+      transform:
+        scale(var(--tree-scale))
+        rotate(var(--tree-rotate));
+      transition: transform 0.18s ease-out;
+      filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.8));
+      touch-action: none; /* 让手势拖拽更顺滑 */
+    }
+
+    .trunk {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      width: 46px;
+      height: 70px;
+      transform: translateX(-50%);
+      background: linear-gradient(180deg, #5c3b23, #2e1b10);
+      border-radius: 8px;
+      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.6);
+    }
+
+    .tree-layer {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-style: solid;
+      filter:
+        drop-shadow(0 0 18px rgba(0, 0, 0, 0.7))
+        drop-shadow(0 0 calc(60px * var(--glow-strength))
+          hsl(var(--tree-hue), 80%, 45%));
+    }
+
+    .tree-layer.layer-1 {
+      bottom: 130px;
+      border-width: 0 60px 90px 60px;
+      border-color:
+        transparent transparent
+        hsl(calc(var(--tree-hue) - 10), 70%, 27%) transparent;
+    }
+
+    .tree-layer.layer-2 {
+      bottom: 80px;
+      border-width: 0 80px 110px 80px;
+      border-color:
+        transparent transparent
+        hsl(var(--tree-hue), 75%, 26%) transparent;
+    }
+
+    .tree-layer.layer-3 {
+      bottom: 30px;
+      border-width: 0 100px 120px 100px;
+      border-color:
+        transparent transparent
+        hsl(calc(var(--tree-hue) + 8), 70%, 24%) transparent;
+    }
+
+    .star {
+      position: absolute;
+      bottom: 210px;
+      left: 50%;
+      transform: translateX(-50%) rotate(10deg);
+      width: 44px;
+      height: 44px;
+      background: conic-gradient(
+        from 0deg,
+        hsl(var(--accent-hue), 90%, 70%),
+        hsl(var(--accent-hue), 95%, 75%),
+        #fff8cc,
+        hsl(var(--accent-hue), 90%, 70%)
+      );
+      clip-path: polygon(
+        50% 0%,
+        63% 34%,
+        100% 38%,
+        72% 61%,
+        79% 100%,
+        50% 78%,
+        21% 100%,
+        28% 61%,
+        0% 38%,
+        37% 34%
+      );
+      box-shadow:
+        0 0 16px rgba(255, 255, 255, 0.7),
+        0 0 40px hsl(var(--accent-hue), 100%, 70%);
+      animation: starPulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes starPulse {
+      0%, 100% {
+        transform: translateX(-50%) rotate(10deg) scale(1);
+      }
+      50% {
+        transform: translateX(-50%) rotate(10deg) scale(1.12);
+      }
+    }
+
+    .lights {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .light-dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: radial-gradient(
+        circle,
+        hsl(var(--accent-hue), 95%, 75%),
+        hsla(var(--accent-hue), 90%, 40%, 0.1)
+      );
+      box-shadow:
+        0 0 15px hsl(var(--accent-hue), 90%, 70%),
+        0 0 30px hsl(var(--accent-hue), 100%, 70%);
+      animation: blink 1.6s ease-in-out infinite alternate;
+    }
+
+    .light-dot:nth-child(odd) {
+      animation-duration: 2.1s;
+    }
+
+    .light-dot:nth-child(3n) {
+      animation-duration: 1.4s;
+    }
+
+    @keyframes blink {
+      0% { opacity: 0.3; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1.15); }
+    }
+
+    .snow-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .snowflake {
+      position: absolute;
+      top: -10%;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: radial-gradient(circle, #fff, rgba(255, 255, 255, 0));
+      opacity: 0.85;
+      animation-name: snowfall;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+      animation-duration: var(--snow-speed);
+    }
+
+    @keyframes snowfall {
+      0% { transform: translateY(-10vh); }
+      100% { transform: translateY(110vh); }
+    }
+
+    .ground {
+      position: absolute;
+      inset: auto 0 0 0;
+      height: 90px;
+      background: radial-gradient(circle at top, #f5f8ff 0%, #d9e2ff 30%, #99a0c5 65%, #4a4f76 100%);
+      filter: blur(1px);
+    }
+
+    .sidebar {
+      position: relative;
+      border-radius: 24px;
+      padding: 16px 16px 12px;
+      background: radial-gradient(circle at top left, #253252 0%, #070b14 60%);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(20px);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15, 184, 255, 0.12);
+      border: 1px solid rgba(120, 220, 255, 0.4);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: radial-gradient(circle, #2bff88, #0bab5c);
+      box-shadow: 0 0 8px #34ff96;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #fef6e7;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: rgba(240, 240, 255, 0.7);
+      line-height: 1.6;
+    }
+
+    .gestures {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .gesture-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(5, 10, 25, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .gesture-emoji {
+      font-size: 18px;
+      line-height: 1;
+      margin-top: 2px;
+    }
+
+    .gesture-text-title {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .gesture-text-sub {
+      font-size: 12px;
+      color: rgba(230, 235, 255, 0.7);
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(4, 10, 20, 0.9);
+      border: 1px solid rgba(120, 220, 255, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .status-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .status-label {
+      color: rgba(220, 230, 255, 0.8);
+    }
+
+    .status-value {
+      font-family: "SF Mono", ui-monospace, Menlo, monospace;
+      color: #fef8d8;
+    }
+
+    .footer {
+      font-size: 11px;
+      color: rgba(210, 220, 255, 0.5);
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+
+    .footer b {
+      color: rgba(255, 245, 210, 0.9);
+    }
+
+    #input_video {
+      display: none;
+    }
+
+    /* 启动按钮（移动端很重要，需要用户手动点击才能调摄像头） */
+    .start-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .start-btn {
+      pointer-events: auto;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #27e4ff, #ffce4e);
+      color: #050815;
+      box-shadow:
+        0 0 12px rgba(39, 228, 255, 0.5),
+        0 0 18px rgba(255, 206, 78, 0.6);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .start-btn span {
+      font-size: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .start-btn {
+        padding: 9px 18px;
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="scene">
+      <div class="scene-inner">
+        <div class="tree-wrap" id="treeWrap">
+          <div class="star"></div>
+          <div class="tree-layer layer-1"></div>
+          <div class="tree-layer layer-2"></div>
+          <div class="tree-layer layer-3"></div>
+          <div class="trunk"></div>
+          <div class="lights" id="lights"></div>
+        </div>
+        <div class="snow-layer" id="snowLayer"></div>
+        <div class="ground"></div>
+
+        <!-- 启动摄像头按钮（手机端必须点一下） -->
+        <div class="start-overlay">
+          <button id="startBtn" class="start-btn">
+            <span>✨</span> 点击开始体验
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="sidebar">
+      <div>
+        <div class="badge">
+          <span class="badge-dot"></span>
+          <span>Hand-Tracking Xmas</span>
+        </div>
+        <h1 class="title">手势圣诞树 · Mobile</h1>
+        <p class="subtitle">
+          在手机或电脑浏览器中打开这个页面，点击左侧按钮授权摄像头。<br />
+          然后对着屏幕举手试试：左右移动、上下移动、用拇指和食指轻轻一捏。
+        </p>
+
+        <div class="gestures">
+          <div class="gesture-item">
+            <div class="gesture-emoji">🤲</div>
+            <div>
+              <div class="gesture-text-title">左右移动手掌</div>
+              <div class="gesture-text-sub">圣诞树左右旋转，像围着树走一圈看礼物。</div>
+            </div>
+          </div>
+          <div class="gesture-item">
+            <div class="gesture-emoji">✋</div>
+            <div>
+              <div class="gesture-text-title">上下移动手掌</div>
+              <div class="gesture-text-sub">让树靠近你，或者缩小一点，远远欣赏。</div>
+            </div>
+          </div>
+          <div class="gesture-item">
+            <div class="gesture-emoji">🤏</div>
+            <div>
+              <div class="gesture-text-title">大拇指 + 食指捏合</div>
+              <div class="gesture-text-sub">切换不同灯光主题：绿金 / 冰蓝 / 派对洋红。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="status" id="statusBox">
+          <div class="status-line">
+            <span class="status-label">摄像头</span>
+            <span class="status-value" id="camStatus">等待点击“开始体验”</span>
+          </div>
+          <div class="status-line">
+            <span class="status-label">检测到的手</span>
+            <span class="status-value" id="handStatus">0</span>
+          </div>
+          <div class="status-line">
+            <span class="status-label">当前主题</span>
+            <span class="status-value" id="themeStatus">Green &amp; Gold</span>
+          </div>
+        </div>
+
+        <div class="footer">
+          · 若打不开摄像头：请确保是 <b>HTTPS 链接</b>，并在浏览器中选择“允许摄像头”。<br />
+          · 就算不开摄像头，圣诞树 + 飘雪也会正常显示，还可以用手指在树上拖动旋转、缩放。
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <video id="input_video" playsinline></video>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+
+  <script>
+    function clamp(v, min, max) {
+      return Math.min(max, Math.max(min, v));
+    }
+
+    // 雪花 & 灯
+    (function setupDecorations() {
+      const snowLayer = document.getElementById('snowLayer');
+      const snowCount = 80;
+      for (let i = 0; i < snowCount; i++) {
+        const s = document.createElement('div');
+        s.className = 'snowflake';
+        s.style.left = Math.random() * 100 + '%';
+        s.style.animationDelay = (Math.random() * -20) + 's';
+        s.style.animationDuration = (16 + Math.random() * 12) + 's';
+        s.style.opacity = String(0.4 + Math.random() * 0.6);
+        snowLayer.appendChild(s);
+      }
+
+      const lights = document.getElementById('lights');
+      const positions = [
+        { x: 50, y: 145 }, { x: 40, y: 160 }, { x: 60, y: 160 },
+        { x: 35, y: 200 }, { x: 50, y: 210 }, { x: 65, y: 200 },
+        { x: 30, y: 250 }, { x: 45, y: 260 }, { x: 60, y: 260 }, { x: 70, y: 250 }
+      ];
+      positions.forEach(p => {
+        const dot = document.createElement('div');
+        dot.className = 'light-dot';
+        dot.style.left = p.x + '%';
+        dot.style.top = p.y + 'px';
+        lights.appendChild(dot);
+      });
+    })();
+
+    const themeStatusEl = document.getElementById('themeStatus');
+    const handStatusEl = document.getElementById('handStatus');
+    const camStatusEl = document.getElementById('camStatus');
+
+    let themeIndex = 0;
+    const themes = [
+      { treeHue: 140, accentHue: 40, snowSpeed: 18, glow: 0.6, label: 'Green & Gold' },
+      { treeHue: 180, accentHue: 195, snowSpeed: 14, glow: 0.8, label: 'Ice Blue' },
+      { treeHue: 320, accentHue: 330, snowSpeed: 20, glow: 0.9, label: 'Magenta Party' }
+    ];
+
+    function applyTheme(index) {
+      const t = themes[index];
+      document.documentElement.style.setProperty('--tree-hue', t.treeHue);
+      document.documentElement.style.setProperty('--accent-hue', t.accentHue);
+      document.documentElement.style.setProperty('--snow-speed', t.snowSpeed + 's');
+      document.documentElement.style.setProperty('--glow-strength', t.glow);
+      themeStatusEl.textContent = t.label;
+    }
+
+    applyTheme(themeIndex);
+
+    let lastPinchTime = 0;
+
+    function handleHandLandmarks(landmarks) {
+      if (!landmarks || !landmarks.length) {
+        handStatusEl.textContent = '0';
+        return;
+      }
+      handStatusEl.textContent = String(landmarks.length);
+
+      const hand = landmarks[0];
+      const center = hand[9];
+      const x = center.x;
+      const y = center.y;
+
+      const rot = (x - 0.5) * 60;
+      const scale = 0.9 + (0.5 - y) * 0.9;
+      document.documentElement.style.setProperty('--tree-rotate', clamp(rot, -32, 32) + 'deg');
+      document.documentElement.style.setProperty('--tree-scale', String(clamp(scale, 0.8, 1.4)));
+
+      const thumbTip = hand[4];
+      const indexTip = hand[8];
+      const dx = thumbTip.x - indexTip.x;
+      const dy = thumbTip.y - indexTip.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const now = performance.now();
+      const isPinched = dist < 0.055;
+      if (isPinched && now - lastPinchTime > 600) {
+        lastPinchTime = now;
+        themeIndex = (themeIndex + 1) % themes.length;
+        applyTheme(themeIndex);
+      }
+    }
+
+    // pointer 拖拽（没有摄像头时也可以玩一玩）
+    (function setupPointerControl() {
+      const tree = document.getElementById('treeWrap');
+      let dragging = false;
+      let startX = 0, startY = 0;
+      let baseRotate = 0, baseScale = 1;
+
+      function getVars() {
+        const cs = getComputedStyle(document.documentElement);
+        const rotStr = cs.getPropertyValue('--tree-rotate').trim();
+        const scaleStr = cs.getPropertyValue('--tree-scale').trim();
+        return {
+          rotate: parseFloat(rotStr.replace('deg', '')) || 0,
+          scale: parseFloat(scaleStr) || 1
+        };
+      }
+
+      tree.addEventListener('pointerdown', (e) => {
+        dragging = true;
+        tree.setPointerCapture(e.pointerId);
+        startX = e.clientX;
+        startY = e.clientY;
+        const v = getVars();
+        baseRotate = v.rotate;
+        baseScale = v.scale;
+      });
+
+      tree.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        const newRot = baseRotate + dx * 0.25;
+        const newScale = baseScale - dy * 0.005;
+        document.documentElement.style.setProperty('--tree-rotate', clamp(newRot, -45, 45) + 'deg');
+        document.documentElement.style.setProperty('--tree-scale', String(clamp(newScale, 0.7, 1.6)));
+      });
+
+      tree.addEventListener('pointerup', (e) => {
+        dragging = false;
+        tree.releasePointerCapture(e.pointerId);
+      });
+
+      tree.addEventListener('pointercancel', (e) => {
+        dragging = false;
+        try { tree.releasePointerCapture(e.pointerId); } catch (_) {}
+      });
+    })();
+
+    // Mediapipe Hands
+    const videoElement = document.getElementById('input_video');
+
+    const hands = new Hands({
+      locateFile: (file) =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7
+    });
+
+    hands.onResults((results) => {
+      const landmarks = results.multiHandLandmarks || [];
+      handleHandLandmarks(landmarks);
+    });
+
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 640,
+      height: 480
+    });
+
+    const startBtn = document.getElementById('startBtn');
+    let cameraStarted = false;
+
+    startBtn.addEventListener('click', async () => {
+      if (cameraStarted) return;
+      cameraStarted = true;
+      startBtn.style.display = 'none';
+      try {
+        await camera.start();
+        camStatusEl.textContent = '已启动 ✓';
+      } catch (e) {
+        console.error(e);
+        camStatusEl.textContent = '摄像头失败（检查权限 / HTTPS / 浏览器设置）';
+      }
+    });
+  </script>
+</body>
+</html>
