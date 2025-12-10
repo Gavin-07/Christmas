@@ -523,4 +523,690 @@
 
     function setupLights() {
       const ambient = new THREE.AmbientLight(0xffffff, 0.22);
-      scene.add
+      scene.add(ambient);
+
+      const bottomLight = new THREE.PointLight(CONFIG.colors.gold, 3.2, 40);
+      bottomLight.position.set(0, -10, 10);
+      mainGroup.add(bottomLight);
+
+      const spotGold = new THREE.SpotLight(0xfff0dd, 820);
+      spotGold.position.set(40, 60, 40);
+      spotGold.angle = 0.4;
+      spotGold.penumbra = 0.5;
+      spotGold.decay = 2;
+      spotGold.distance = 200;
+      scene.add(spotGold);
+
+      const spotBlue = new THREE.SpotLight(0x4455ff, 380);
+      spotBlue.position.set(-40, 10, -30);
+      spotBlue.lookAt(0, 0, 0);
+      scene.add(spotBlue);
+    }
+
+    function setupPostProcessing() {
+      const renderScene = new RenderPass(scene, camera);
+
+      // Bloom 再柔一点，减少过曝
+      const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.85, // strength
+        0.35, // radius
+        1.0   // threshold
+      );
+
+      composer = new EffectComposer(renderer);
+      composer.addPass(renderScene);
+      composer.addPass(bloomPass);
+    }
+
+    function createTextures() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 128, 128);
+      ctx.fillStyle = '#aa0000';
+      ctx.beginPath();
+      for (let i = -128; i < 256; i += 32) {
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i + 32, 128);
+        ctx.lineTo(i + 16, 128);
+        ctx.lineTo(i - 16, 0);
+      }
+      ctx.fill();
+
+      caneTexture = new THREE.CanvasTexture(canvas);
+      caneTexture.colorSpace = THREE.SRGBColorSpace;
+      caneTexture.wrapS = THREE.RepeatWrapping;
+      caneTexture.wrapT = THREE.RepeatWrapping;
+      caneTexture.repeat.set(3, 3);
+    }
+
+    function createBackgroundStars() {
+      const geometry = new THREE.BufferGeometry();
+      const count = 900;
+      const positions = new Float32Array(count * 3);
+
+      for (let i = 0; i < count; i++) {
+        const r = 80 + Math.random() * 100;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i * 3 + 2] = r * Math.cos(phi);
+      }
+
+      geometry.setAttribute(
+        'position',
+        new THREE.BufferAttribute(positions, 3)
+      );
+      const material = new THREE.PointsMaterial({
+        color: 0xbbc7da,
+        size: 0.9,
+        transparent: true,
+        opacity: 0.65,
+        sizeAttenuation: true
+      });
+
+      const points = new THREE.Points(geometry, material);
+      bgGroup.add(points);
+    }
+
+    class Particle {
+      constructor(mesh, type, isDust = false) {
+        this.mesh = mesh;
+        this.type = type;
+        this.isDust = isDust;
+
+        this.posTree = new THREE.Vector3();
+        this.posScatter = new THREE.Vector3();
+        this.baseScale = mesh.scale.x;
+
+        this.offset = Math.random() * 100;
+        this.speed = 0.6 + Math.random();
+
+        if (mesh.material && mesh.material.emissive) {
+          this.baseEmissive = mesh.material.emissive.clone();
+          this.hasEmissive = true;
+        }
+
+        this.calculatePositions();
+      }
+
+      calculatePositions() {
+        const h = CONFIG.particles.treeHeight;
+        const halfH = h / 2;
+        const isSpiral = Math.random() > 0.7 && !this.isDust;
+
+        let t = Math.random();
+
+        if (isSpiral) {
+          const y = t * h - halfH;
+          const rBase = CONFIG.particles.treeRadius * (1.0 - t);
+          const revolutions = 7;
+          const angle = t * Math.PI * 2 * revolutions;
+          this.posTree.set(
+            Math.cos(angle) * rBase,
+            y,
+            Math.sin(angle) * rBase
+          );
+        } else {
+          t = Math.pow(t, 0.8);
+          const y = t * h - halfH;
+          let rMax = CONFIG.particles.treeRadius * (1.0 - t);
+          if (rMax < 0.5) rMax = 0.5;
+          const angle = Math.random() * Math.PI * 2;
+          const r = rMax * Math.sqrt(Math.random());
+          this.posTree.set(
+            Math.cos(angle) * r,
+            y,
+            Math.sin(angle) * r
+          );
+        }
+
+        let rScatter = this.isDust ? 15 + Math.random() * 25 : 10 + Math.random() * 15;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        this.posScatter.set(
+          rScatter * Math.sin(phi) * Math.cos(theta),
+          rScatter * Math.sin(phi) * Math.sin(theta),
+          rScatter * Math.cos(phi)
+        );
+      }
+
+      update(dt, time, mode) {
+        const target = mode === 'SCATTER' ? this.posScatter : this.posTree;
+
+        const noiseY = Math.sin(time * this.speed + this.offset) * 0.15;
+        const noiseX = Math.cos(time * 0.5 * this.speed + this.offset) * 0.1;
+
+        const dest = target.clone();
+        if (mode === 'TREE') {
+          dest.y += noiseY;
+          dest.x += noiseX;
+        }
+
+        const lerpSpeed = 2.8;
+        this.mesh.position.lerp(dest, lerpSpeed * dt);
+
+        if (mode === 'SCATTER' || this.isDust) {
+          this.mesh.rotation.x += dt * 0.55;
+          this.mesh.rotation.y += dt * 0.35;
+        } else if (mode === 'TREE') {
+          this.mesh.rotation.y += dt * 0.12;
+        }
+
+        if (this.hasEmissive && mode === 'TREE' && !this.isDust) {
+          const blink = Math.sin(time * 2.3 + this.offset);
+          this.mesh.material.emissiveIntensity =
+            0.18 + Math.max(0, blink) * 0.5;
+        }
+
+        let s = this.baseScale;
+        if (this.isDust) {
+          s = this.baseScale *
+              (0.5 + 0.5 * Math.sin(time * 3 + this.offset));
+        } else if (mode === 'SCATTER') {
+          s = this.baseScale * 1.15;
+        }
+
+        this.mesh.scale.lerp(new THREE.Vector3(s, s, s), 5 * dt);
+      }
+    }
+
+    function createParticles() {
+      const sphereGeo = new THREE.SphereGeometry(0.5, 32, 32);
+      const icosaGeo = new THREE.IcosahedronGeometry(0.45, 0);
+      const boxGeo = new THREE.BoxGeometry(0.45, 0.45, 0.45);
+
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, -0.5, 0),
+        new THREE.Vector3(0, 0.3, 0),
+        new THREE.Vector3(0.1, 0.5, 0),
+        new THREE.Vector3(0.3, 0.4, 0)
+      ]);
+      const candyGeo = new THREE.TubeGeometry(
+        curve,
+        16,
+        0.08,
+        8,
+        false
+      );
+
+      const goldMat = new THREE.MeshStandardMaterial({
+        color: CONFIG.colors.gold,
+        metalness: 1.0,
+        roughness: 0.18,
+        envMapIntensity: 2.2,
+        emissive: 0x553300,
+        emissiveIntensity: 0.18
+      });
+
+      const champagneMat = new THREE.MeshStandardMaterial({
+        color: CONFIG.colors.champagne,
+        metalness: 0.9,
+        roughness: 0.22,
+        envMapIntensity: 2.0,
+        emissive: 0x332211,
+        emissiveIntensity: 0.16
+      });
+
+      const greenMat = new THREE.MeshStandardMaterial({
+        color: CONFIG.colors.green,
+        metalness: 0.45,
+        roughness: 0.3,
+        emissive: 0x001100,
+        emissiveIntensity: 0.1
+      });
+
+      const redMat = new THREE.MeshPhysicalMaterial({
+        color: CONFIG.colors.red,
+        metalness: 0.6,
+        roughness: 0.22,
+        clearcoat: 0.9,
+        clearcoatRoughness: 0.15,
+        emissive: 0x330000,
+        emissiveIntensity: 0.25
+      });
+
+      const candyMat = new THREE.MeshStandardMaterial({
+        map: caneTexture,
+        roughness: 0.28,
+        metalness: 0.1,
+        emissive: 0x222222
+      });
+
+      const dustGeo = new THREE.OctahedronGeometry(0.1, 0);
+      const dustMat = new THREE.MeshBasicMaterial({
+        color: 0xfffff2,
+        blending: THREE.AdditiveBlending
+      });
+
+      for (let i = 0; i < CONFIG.particles.count; i++) {
+        const rand = Math.random();
+        let mesh, type;
+
+        if (rand < 0.25) {
+          mesh = new THREE.Mesh(boxGeo, greenMat);
+          type = 'BOX';
+        } else if (rand < 0.55) {
+          mesh = new THREE.Mesh(boxGeo, champagneMat);
+          type = 'CHAMP_BOX';
+        } else if (rand < 0.8) {
+          mesh = new THREE.Mesh(sphereGeo, goldMat);
+          type = 'GOLD_SPHERE';
+        } else if (rand < 0.94) {
+          mesh = new THREE.Mesh(icosaGeo, champagneMat);
+          type = 'ICOSA';
+        } else if (rand < 0.98) {
+          mesh = new THREE.Mesh(sphereGeo, redMat);
+          type = 'RED';
+        } else {
+          mesh = new THREE.Mesh(candyGeo, candyMat);
+          type = 'CANE';
+        }
+
+        const s = 0.24 + Math.random() * 0.32;
+        mesh.scale.set(s, s, s);
+        mesh.rotation.set(
+          Math.random() * 6,
+          Math.random() * 6,
+          Math.random() * 6
+        );
+
+        mainGroup.add(mesh);
+        particleSystem.push(new Particle(mesh, type, false));
+      }
+
+      for (let i = 0; i < CONFIG.particles.dustCount; i++) {
+        const mesh = new THREE.Mesh(dustGeo, dustMat);
+        mesh.scale.setScalar(0.5 + Math.random());
+        mainGroup.add(mesh);
+        particleSystem.push(new Particle(mesh, 'DUST', true));
+      }
+
+      createStarTopper();
+      mainGroup.add(photoMeshGroup);
+    }
+
+    // 花环 / 装饰带：
+    //   上面一圈：保持现在的小圈
+    //   下面一圈：用上一版更大的尺寸
+    function createGarlands() {
+      const h = CONFIG.particles.treeHeight;
+      const halfH = h / 2;
+      const levels = [0.35, 0.62]; // 0.35 底部圈，0.62 上面圈
+
+      levels.forEach((t, idx) => {
+        const y = t * h - halfH;
+        let radius;
+
+        if (idx === 0) {
+          // 底部圈：上一版比较大的尺寸
+          radius = CONFIG.particles.treeRadius * (1.0 - t) * 0.95 + 0.3;
+        } else {
+          // 上面圈：当前稍小、贴树一点的尺寸
+          radius = CONFIG.particles.treeRadius * (1.0 - t) * 0.75 + 0.2;
+        }
+
+        const geo = new THREE.TorusGeometry(
+          radius,
+          0.05,
+          24,
+          220
+        );
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0xfff0c4,
+          metalness: 0.95,
+          roughness: 0.25,
+          emissive: 0x775522,
+          emissiveIntensity: 0.2,
+          transparent: true,
+          opacity: 0.2
+        });
+        const ring = new THREE.Mesh(geo, mat);
+        ring.position.y = y;
+        ring.rotation.x = Math.PI / 2;              // 保持水平
+        ring.rotation.z = (Math.random() - 0.5) * 0.1; // 约 ±6° 的轻微倾斜
+        mainGroup.add(ring);
+        garlands.push(ring);
+      });
+    }
+
+    // 顶部五角星灯头
+    function createStarTopper() {
+      // 2D 五角星轮廓
+      const starShape = new THREE.Shape();
+      const outerR = 1.7;
+      const innerR = 0.7;
+      const points = 5;
+
+      for (let i = 0; i < points * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        if (i === 0) starShape.moveTo(x, y);
+        else starShape.lineTo(x, y);
+      }
+      starShape.closePath();
+
+      const extrudeSettings = {
+        depth: 0.45,
+        bevelEnabled: true,
+        bevelThickness: 0.15,
+        bevelSize: 0.18,
+        bevelSegments: 4
+      };
+
+      const starGeo = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+      starGeo.center();
+
+      const starMat = new THREE.MeshPhysicalMaterial({
+        color: 0xfff3c0,
+        metalness: 1.0,
+        roughness: 0.12,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
+        emissive: 0xffd890,
+        emissiveIntensity: 1.0,
+        reflectivity: 1.0
+      });
+
+      const star = new THREE.Mesh(starGeo, starMat);
+      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.5, 0);
+      star.rotation.y = Math.PI / 5;        // 一个尖朝前
+      star.userData.baseRotY = star.rotation.y;
+      star.castShadow = true;
+
+      // 中心小灯芯
+      const innerGeo = new THREE.SphereGeometry(0.35, 24, 24);
+      const innerMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const inner = new THREE.Mesh(innerGeo, innerMat);
+      inner.position.set(0, 0, 0.15);
+      star.add(inner);
+
+      // 柔和光晕
+      const haloGeo = new THREE.PlaneGeometry(7, 7);
+      const haloMat = new THREE.MeshBasicMaterial({
+        map: new THREE.TextureLoader().load(
+          'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
+        ),
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        transparent: true,
+        opacity: 0.34,
+        color: 0xffe6aa
+      });
+      const halo = new THREE.Mesh(haloGeo, haloMat);
+      star.add(halo);
+
+      starGroup.add(star);
+      STATE.starMesh = star;
+    }
+
+    // ===== 手势 & 摄像头 =====
+    async function initMediaPipe() {
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
+      );
+      handLandmarker = await HandLandmarker.createFromOptions(
+        vision,
+        {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+            delegate: 'GPU'
+          },
+          runningMode: 'VIDEO',
+          numHands: 1
+        }
+      );
+
+      video = document.getElementById('webcam');
+      const canvasElement = document.getElementById('webcam-preview');
+      canvasCtx = canvasElement.getContext('2d');
+      drawingUtils = new DrawingUtils(canvasCtx);
+
+      if (navigator.mediaDevices?.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 1280, height: 720 }
+          });
+          video.srcObject = stream;
+          video.addEventListener('loadeddata', () => {
+            predictWebcam();
+          });
+        } catch (e) {
+          console.warn('Webcam access denied', e);
+          alert('请允许摄像头权限以体验手势互动功能');
+        }
+      }
+    }
+
+    let lastVideoTime = -1;
+    async function predictWebcam() {
+      const canvasElement = document.getElementById('webcam-preview');
+      if (video.videoWidth && canvasElement.width !== video.videoWidth) {
+        canvasElement.width = video.videoWidth;
+        canvasElement.height = video.videoHeight;
+      }
+
+      if (lastVideoTime !== video.currentTime) {
+        lastVideoTime = video.currentTime;
+
+        let result = null;
+        if (handLandmarker) {
+          result = handLandmarker.detectForVideo(
+            video,
+            performance.now()
+          );
+        }
+
+        canvasCtx.save();
+        canvasCtx.drawImage(
+          video,
+          0,
+          0,
+          canvasElement.width,
+          canvasElement.height
+        );
+
+        if (result && result.landmarks && result.landmarks.length > 0) {
+          for (const landmarks of result.landmarks) {
+            drawingUtils.drawConnectors(
+              landmarks,
+              HandLandmarker.HAND_CONNECTIONS,
+              { color: '#d4af37', lineWidth: 3 }
+            );
+            drawingUtils.drawLandmarks(landmarks, {
+              color: '#ffffff',
+              lineWidth: 1,
+              radius: 3
+            });
+          }
+          processGestures(result.landmarks[0]);
+        } else {
+          STATE.hand.detected = false;
+        }
+        canvasCtx.restore();
+      }
+      requestAnimationFrame(predictWebcam);
+    }
+
+    // === 手势逻辑：带记忆的双阈值，更容易收回树 ===
+    function processGestures(lm) {
+      STATE.hand.detected = true;
+
+      // 手心位置控制视角
+      const targetX = (lm[9].x - 0.5) * 2;
+      const targetY = (lm[9].y - 0.5) * 2;
+      STATE.hand.x += (targetX - STATE.hand.x) * 0.2;
+      STATE.hand.y += (targetY - STATE.hand.y) * 0.2;
+
+      // 计算手指张开程度：手腕到 4 个指尖的平均距离
+      const wrist = lm[0];
+      const tips = [lm[8], lm[12], lm[16], lm[20]];
+      let spread = 0;
+      tips.forEach(t => {
+        spread += Math.hypot(t.x - wrist.x, t.y - wrist.y);
+      });
+      spread /= tips.length;
+
+      const TO_TREE = 0.33;     // 当前是 SCATTER 时，小于这个就切回 TREE
+      const TO_SCATTER = 0.42;  // 当前是 TREE 时，大于这个才切成 SCATTER
+
+      if (STATE.mode === 'SCATTER' && spread < TO_TREE) {
+        STATE.mode = 'TREE';
+      } else if (STATE.mode === 'TREE' && spread > TO_SCATTER) {
+        STATE.mode = 'SCATTER';
+      }
+    }
+
+    function setupEvents() {
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        composer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      window.addEventListener('keydown', e => {
+        if (e.key.toLowerCase() === 'h') {
+          document
+            .getElementById('ui-layer')
+            .classList.toggle('ui-hidden');
+        }
+      });
+
+      // PC 鼠标
+      document.addEventListener('mousemove', e => {
+        if (STATE.hand.detected) return;
+        const x = (e.clientX / window.innerWidth) * 2 - 1;
+        const y = -(e.clientY / window.innerHeight) * 2 + 1;
+        STATE.mouse.x = x;
+        STATE.mouse.y = y;
+      });
+
+      // 移动端触摸
+      document.addEventListener(
+        'touchmove',
+        e => {
+          if (STATE.hand.detected) return;
+          const t = e.touches[0];
+          const x = (t.clientX / window.innerWidth) * 2 - 1;
+          const y = -(t.clientY / window.innerHeight) * 2 + 1;
+          STATE.mouse.x = x;
+          STATE.mouse.y = y;
+        },
+        { passive: true }
+      );
+    }
+
+    // BGM 开关逻辑（按钮文字自动切换）
+    function setupBGM() {
+      const bgm = document.getElementById('bgm');
+      const btn = document.getElementById('bgm-toggle');
+      let on = false;
+
+      const updateLabel = () => {
+        btn.querySelector('span:nth-child(2)').textContent = on ? '音乐 关' : '音乐 开';
+      };
+
+      btn.addEventListener('click', () => {
+        if (!on) {
+          bgm
+            .play()
+            .then(() => {
+              on = true;
+              updateLabel();
+            })
+            .catch(e => {
+              console.warn('BGM 播放失败（可能被浏览器阻止）：', e);
+            });
+        } else {
+          bgm.pause();
+          on = false;
+          updateLabel();
+        }
+      });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      STATE.time = clock.elapsedTime;
+
+      let inputX = STATE.hand.detected
+        ? STATE.hand.x
+        : STATE.mouse.x * 0.5;
+      let inputY = STATE.hand.detected
+        ? STATE.hand.y
+        : STATE.mouse.y * 0.5;
+
+      if (STATE.mode === 'TREE') {
+        STATE.rotation.y += 0.2 * dt;
+        mainGroup.rotation.z = THREE.MathUtils.lerp(
+          mainGroup.rotation.z,
+          inputX * 0.1,
+          dt * 2
+        );
+        mainGroup.rotation.x =
+          0.1 +
+          THREE.MathUtils.lerp(
+            0,
+            inputY * 0.1,
+            dt * 2
+          );
+      } else if (STATE.mode === 'SCATTER') {
+        STATE.rotation.y +=
+          (inputX * 2 - STATE.rotation.y) * 2 * dt;
+        STATE.rotation.x +=
+          (inputY * 0.5 - STATE.rotation.x) * 2 * dt;
+      }
+
+      mainGroup.rotation.y = STATE.rotation.y;
+
+      bgGroup.rotation.y -= 0.05 * dt;
+      bgGroup.rotation.z += 0.02 * dt;
+
+      // 顶部五角星：
+      //   1）starGroup 反向抵消 mainGroup 的 x/z 倾斜，让星星始终竖直
+      //   2）只保留绕 Y 轴的一点点“呼吸”缩放，不做自转
+      if (STATE.starMesh) {
+        starGroup.rotation.x = -mainGroup.rotation.x;
+        starGroup.rotation.z = -mainGroup.rotation.z;
+        starGroup.rotation.y = 0;
+
+        const baseRotY = STATE.starMesh.userData.baseRotY || 0;
+        STATE.starMesh.rotation.y = baseRotY;
+        STATE.starMesh.rotation.z = 0;
+
+        const s = 1.0 + Math.sin(STATE.time * 1.5) * 0.03;
+        STATE.starMesh.scale.set(s, s, s);
+      }
+
+      // 花环轻微转动
+      garlands.forEach((g, idx) => {
+        g.rotation.y += (idx % 2 === 0 ? 0.1 : -0.06) * dt;
+        g.material.emissiveIntensity =
+          0.18 + Math.sin(STATE.time * 1.2 + idx) * 0.12;
+      });
+
+      particleSystem.forEach(p =>
+        p.update(dt, STATE.time, STATE.mode)
+      );
+
+      // 2D 背景层
+      renderOverlay(dt);
+
+      composer.render();
+    }
+
+    init();
+  </script>
+</body>
+</html>
