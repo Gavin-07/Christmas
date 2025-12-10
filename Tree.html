@@ -117,7 +117,6 @@
       opacity: 0.95;
     }
 
-    /* 上传区隐藏（以后想加照片再打开） */
     .upload-wrapper { display: none; }
     #file-input { display: none; }
 
@@ -134,7 +133,6 @@
       align-items: flex-start;
     }
 
-    /* 左下角 BGM 按钮 */
     #bgm-toggle {
       pointer-events: auto;
       border-radius: 999px;
@@ -161,7 +159,6 @@
       transform: translateY(-1px);
     }
 
-    /* 左下角操作说明 */
     #instructions {
       color: rgba(255, 255, 255, 0.86);
       font-family: 'Cinzel', serif;
@@ -191,14 +188,12 @@
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
     }
 
-    /* 摄像头预览隐藏，仅用于手势识别 */
     #webcam-wrapper,
     #webcam,
     #webcam-preview {
       display: none;
     }
 
-    /* 移动端适配 */
     @media (max-width: 768px) {
       h1 {
         font-size: clamp(26px, 7vw, 34px);
@@ -244,13 +239,9 @@
     <div class="loader-text">MERRY CHRISTMAS</div>
   </div>
 
-  <!-- 高级背景：渐变 + 散景 + 飘雪 -->
   <canvas id="bg-overlay"></canvas>
-
-  <!-- 3D 树 -->
   <div id="canvas-container"></div>
 
-  <!-- UI -->
   <div id="ui-layer">
     <h1>MERRY CHRISTMAS</h1>
 
@@ -261,7 +252,6 @@
       </label>
     </div>
 
-    <!-- 左下整体面板：BGM + 说明 -->
     <div id="bottom-left-panel">
       <button id="bgm-toggle">
         <span>♪</span><span>音乐 开</span>
@@ -280,13 +270,11 @@
     </div>
   </div>
 
-  <!-- 摄像头元素（隐藏，仅用于手势识别） -->
   <div id="webcam-wrapper">
     <video id="webcam" autoplay playsinline></video>
     <canvas id="webcam-preview"></canvas>
   </div>
 
-  <!-- BGM 音频 -->
   <audio
     id="bgm"
     loop
@@ -305,7 +293,6 @@
       DrawingUtils
     } from '@mediapipe/tasks-vision';
 
-    // ===== 配置 =====
     const CONFIG = {
       colors: {
         bg: 0x020202,
@@ -326,7 +313,7 @@
     };
 
     const STATE = {
-      mode: 'TREE', // TREE / SCATTER
+      mode: 'TREE',
       hand: { detected: false, x: 0, y: 0 },
       mouse: { x: 0, y: 0 },
       rotation: { x: 0, y: 0 },
@@ -338,17 +325,15 @@
     let mainGroup, starGroup, bgGroup;
     let clock = new THREE.Clock();
     let particleSystem = [];
-    let garlandHolders = [];  // 父节点：只负责绕 Y 轴转
+    let garlandHolders = [];
     let photoMeshGroup = new THREE.Group();
 
     let handLandmarker, video;
     let caneTexture;
     let drawingUtils, canvasCtx;
 
-    // 2D overlay
     let overlayCanvas, overlayCtx;
-    let overlayW = 0,
-        overlayH = 0;
+    let overlayW = 0, overlayH = 0;
     let snowflakes = [];
     let bokehLights = [];
 
@@ -364,7 +349,6 @@
       setupPostProcessing();
       setupEvents();
       setupBGM();
-
       initMediaPipe().catch(console.warn);
 
       const loader = document.getElementById('loader');
@@ -374,7 +358,6 @@
       animate();
     }
 
-    // ===== Three.js 场景 =====
     function initThree() {
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
@@ -413,7 +396,6 @@
       mainGroup.add(starGroup);
     }
 
-    // ===== 2D 背景（柔和散景 + 飘雪）=====
     function initOverlay() {
       overlayCanvas = document.getElementById('bg-overlay');
       overlayCtx = overlayCanvas.getContext('2d');
@@ -427,7 +409,6 @@
       resizeOverlay();
       window.addEventListener('resize', resizeOverlay);
 
-      // 雪花
       const snowCount = 120;
       snowflakes = [];
       for (let i = 0; i < snowCount; i++) {
@@ -441,7 +422,6 @@
         });
       }
 
-      // 散景光斑
       const bokehCount = 7;
       bokehLights = [];
       for (let i = 0; i < bokehCount; i++) {
@@ -541,14 +521,12 @@
 
     function setupPostProcessing() {
       const renderScene = new RenderPass(scene, camera);
-
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
         0.85,
         0.35,
         1.0
       );
-
       composer = new EffectComposer(renderer);
       composer.addPass(renderScene);
       composer.addPass(bloomPass);
@@ -827,23 +805,25 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环：使用父节点 holder 只绕 Y 轴转，圈本身的倾斜角固定 (< 35°)
+    // 花环：圈保持水平 + 小倾斜；holder 只绕 Y 轴转
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
 
-      // 两圈：上圈略小，下圈略大
       const levels = [0.45, 0.70];
 
       levels.forEach((t, idx) => {
         const y = t * h - halfH;
 
-        // 半径再缩小一点
-        const radius = CONFIG.particles.treeRadius * (1.0 - t) * 0.8 + 0.2;
+        const baseRadius = CONFIG.particles.treeRadius * (1.0 - t);
+        const radius =
+          idx === 0
+            ? baseRadius * 0.55 + 0.15   // 上圈更小
+            : baseRadius * 0.65 + 0.25;  // 下圈稍微大一点
 
         const geo = new THREE.TorusGeometry(
           radius,
-          0.055,
+          0.045,   // 更细
           24,
           220
         );
@@ -852,22 +832,19 @@
           metalness: 0.95,
           roughness: 0.25,
           emissive: 0x775522,
-          emissiveIntensity: 0.2,
+          emissiveIntensity: 0.14,
           transparent: true,
-          opacity: 0.2
+          opacity: 0.12   // 更虚
         });
 
         const ring = new THREE.Mesh(geo, mat);
 
-        // 先让圈躺平在 XZ 平面上（像地上的圆）
-        ring.rotation.x = Math.PI / 2;
-
-        // 再给一个小倾斜角：10° / 18°，都远小于 35°
+        // Torus 默认就在 XZ 平面，所以不用再转 x 轴
+        // 只给一点 z 轴倾斜（<< 35°）
         const tiltDeg = idx === 0 ? 10 : 18;
         const tiltRad = THREE.MathUtils.degToRad(tiltDeg);
         ring.rotation.z = tiltRad;
 
-        // holder 只绕 Y 轴转，这样圈的 tilt 不会被破坏
         const holder = new THREE.Group();
         holder.position.y = y;
         holder.add(ring);
@@ -877,7 +854,7 @@
       });
     }
 
-    // 顶部五角星灯头：固定一个尖朝上，不再旋转
+    // 顶部五角星：固定一个尖朝上，并绕 Y 轴翻转 180°
     function createStarTopper() {
       const starShape = new THREE.Shape();
       const outerR = 1.7;
@@ -918,10 +895,10 @@
 
       const star = new THREE.Mesh(starGeo, starMat);
       star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.2, 0);
-      star.rotation.set(0, 0, 0);   // 顶部一个尖朝上
+      // 一个尖朝上 + 绕 Y 轴翻转 180°
+      star.rotation.set(0, Math.PI, 0);
       star.castShadow = true;
 
-      // 柔和光晕 Sprite（没有硬白点）
       const textureLoader = new THREE.TextureLoader();
       const glowTex = textureLoader.load(
         'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/sprites/glow.png'
@@ -942,7 +919,6 @@
       STATE.starMesh = star;
     }
 
-    // ===== 手势 & 摄像头 =====
     async function initMediaPipe() {
       const vision = await FilesetResolver.forVisionTasks(
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
@@ -1031,7 +1007,6 @@
       requestAnimationFrame(predictWebcam);
     }
 
-    // 手势逻辑
     function processGestures(lm) {
       STATE.hand.detected = true;
 
@@ -1096,7 +1071,6 @@
       );
     }
 
-    // BGM 开关逻辑
     function setupBGM() {
       const bgm = document.getElementById('bgm');
       const btn = document.getElementById('bgm-toggle');
@@ -1163,19 +1137,17 @@
       bgGroup.rotation.y -= 0.05 * dt;
       bgGroup.rotation.z += 0.02 * dt;
 
-      // 星星：只做轻微呼吸缩放，不再旋转，保持一个尖朝上
       if (STATE.starMesh) {
         const s = 0.96 + Math.sin(STATE.time * 1.8) * 0.06;
         STATE.starMesh.scale.set(s, s, s);
       }
 
-      // 花环：只让 holder 绕 Y 轴转，圈本身的倾斜角不会改变
       garlandHolders.forEach((holder, idx) => {
         holder.rotation.y += (idx % 2 === 0 ? 0.10 : -0.06) * dt;
         const ring = holder.children[0];
         if (ring && ring.material) {
           ring.material.emissiveIntensity =
-            0.18 + Math.sin(STATE.time * 1.2 + idx) * 0.12;
+            0.14 + Math.sin(STATE.time * 1.2 + idx) * 0.10;
         }
       });
 
@@ -1184,7 +1156,6 @@
       );
 
       renderOverlay(dt);
-
       composer.render();
     }
 
