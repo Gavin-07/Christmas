@@ -832,70 +832,91 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环 / 装饰带：两圈、轻一点
+    // 花环 / 装饰带：两圈更小、更贴树
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
-      const levels = [0.32, 0.58]; // 只要中下 + 中上两圈
+      const levels = [0.35, 0.62]; // 中下 + 中上
 
       levels.forEach((t, idx) => {
         const y = t * h - halfH;
-        const radius =
-          CONFIG.particles.treeRadius * (1.05 - t) + 0.8;
+        // 半径相对树身缩一点
+        const radius = CONFIG.particles.treeRadius * (1.0 - t) * 0.95 + 0.3;
 
         const geo = new THREE.TorusGeometry(
           radius,
-          0.08,
+          0.055,   // 更细一点
           24,
-          200
+          220
         );
         const mat = new THREE.MeshStandardMaterial({
-          color: 0xffe6aa,
-          metalness: 0.9,
+          color: 0xfff0c4,
+          metalness: 0.95,
           roughness: 0.25,
           emissive: 0x775522,
-          emissiveIntensity: 0.22,
+          emissiveIntensity: 0.2,
           transparent: true,
-          opacity: 0.22
+          opacity: 0.2
         });
         const ring = new THREE.Mesh(geo, mat);
         ring.position.y = y;
         ring.rotation.x = Math.PI / 2;
-        ring.rotation.z = (Math.random() - 0.5) * 0.12;
+        ring.rotation.z = (Math.random() - 0.5) * 0.08; // 略微倾斜就好
         mainGroup.add(ring);
         garlands.push(ring);
       });
     }
 
-    // 顶部“钻石形”灯头：单个尖顶，更简洁
+    // 顶部五角星灯头
     function createStarTopper() {
-      // 拉长的 Octahedron，当成钻石状
-      const coreGeo = new THREE.OctahedronGeometry(1.4, 1);
-      coreGeo.scale(0.9, 1.6, 0.9); // 竖向拉长一点
+      // 2D 五角星轮廓
+      const starShape = new THREE.Shape();
+      const outerR = 1.7;
+      const innerR = 0.7;
+      const points = 5;
 
-      const coreMat = new THREE.MeshPhysicalMaterial({
+      for (let i = 0; i < points * 2; i++) {
+        const r = i % 2 === 0 ? outerR : innerR;
+        const angle = (i / (points * 2)) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        if (i === 0) starShape.moveTo(x, y);
+        else starShape.lineTo(x, y);
+      }
+      starShape.closePath();
+
+      const extrudeSettings = {
+        depth: 0.45,
+        bevelEnabled: true,
+        bevelThickness: 0.15,
+        bevelSize: 0.18,
+        bevelSegments: 4
+      };
+
+      const starGeo = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+      starGeo.center();
+
+      const starMat = new THREE.MeshPhysicalMaterial({
         color: 0xfff3c0,
         metalness: 1.0,
-        roughness: 0.1,
+        roughness: 0.12,
         clearcoat: 1.0,
-        clearcoatRoughness: 0.04,
+        clearcoatRoughness: 0.05,
         emissive: 0xffd890,
         emissiveIntensity: 1.0,
         reflectivity: 1.0
       });
 
-      const star = new THREE.Mesh(coreGeo, coreMat);
-      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.4, 0);
-      star.rotation.y = Math.PI / 6;
-      star.rotation.z = 0.1;
+      const star = new THREE.Mesh(starGeo, starMat);
+      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.5, 0);
+      star.rotation.y = Math.PI / 5; // 让一个尖朝前
+      star.castShadow = true;
 
       // 中心小灯芯
-      const innerGeo = new THREE.SphereGeometry(0.4, 24, 24);
-      const innerMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff
-      });
+      const innerGeo = new THREE.SphereGeometry(0.35, 24, 24);
+      const innerMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
       const inner = new THREE.Mesh(innerGeo, innerMat);
-      inner.position.set(0, 0, 0.05);
+      inner.position.set(0, 0, 0.15);
       star.add(inner);
 
       // 柔和光晕
@@ -907,7 +928,7 @@
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.32,
+        opacity: 0.34,
         color: 0xffe6aa
       });
       const halo = new THREE.Mesh(haloGeo, haloMat);
@@ -1075,7 +1096,7 @@
       );
     }
 
-    // BGM 开关逻辑（无 alert，按钮文字自动切换）
+    // BGM 开关逻辑（无多余 alert，按钮文字自动切换）
     function setupBGM() {
       const bgm = document.getElementById('bgm');
       const btn = document.getElementById('bgm-toggle');
@@ -1095,7 +1116,6 @@
             })
             .catch(e => {
               console.warn('BGM 播放失败（可能被浏览器阻止）：', e);
-              // 不再额外 alert，用户多点几次即可
             });
         } else {
           bgm.pause();
