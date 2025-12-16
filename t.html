@@ -120,7 +120,7 @@
     .upload-wrapper { display: none; }
     #file-input { display: none; }
 
-    /* 左下整体面板：包含 BGM + 操作说明 + 主题切换 */
+    /* 左下整体面板：包含 BGM + 操作说明 */
     #bottom-left-panel {
       position: absolute;
       left: 40px;
@@ -188,60 +188,71 @@
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
     }
 
-    /* 主题切换 */
-    #theme-switcher {
+    /* 颜色面板 */
+    #color-panel {
+      position: absolute;
+      bottom: 26px;
+      left: 50%;
+      transform: translateX(-50%);
       pointer-events: auto;
-      margin-top: 4px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(5, 5, 5, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      gap: 8px;
-      backdrop-filter: blur(6px);
-    }
-    .theme-label {
-      font-size: 10px;
-      letter-spacing: 2px;
-      color: rgba(255, 255, 255, 0.65);
+      gap: 10px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: rgba(5, 5, 5, 0.78);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      box-shadow: 0 0 18px rgba(0, 0, 0, 0.85);
       font-family: 'Cinzel', serif;
     }
-    .theme-dots {
-      display: flex;
-      gap: 6px;
+    .color-label {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 11px;
+      letter-spacing: 3px;
     }
-    .theme-btn {
+    .color-dots {
+      display: flex;
+      gap: 10px;
+    }
+    .color-dot {
       width: 16px;
       height: 16px;
       border-radius: 50%;
-      border: 1px solid rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.65);
       cursor: pointer;
-      padding: 0;
       outline: none;
-      background-size: 180% 180%;
-      background-position: center;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      padding: 0;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
+      transition: all 0.2s ease;
     }
-    .theme-btn.theme-active {
-      transform: scale(1.15);
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
-      border-color: #fff;
+    .color-dot:hover {
+      transform: translateY(-1px) scale(1.05);
+      box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.35),
+        0 0 10px rgba(212, 175, 55, 0.7);
     }
-    .theme-gold {
-      background-image: linear-gradient(135deg, #f6d48a, #f1b65c, #fef2cf);
+    .color-dot.active {
+      box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.55),
+        0 0 12px rgba(212, 175, 55, 0.9);
+      transform: translateY(-1px);
     }
-    .theme-ice {
-      background-image: linear-gradient(135deg, #cfe2ff, #8aa8ff, #f7fbff);
+
+    /* 各种渐变色的小点 */
+    .color-dot[data-theme="0"] {
+      background: radial-gradient(circle at 30% 30%, #fff9db, #f2c267 60%, #9b6a22 100%);
     }
-    .theme-purple {
-      background-image: linear-gradient(135deg, #e0c5ff, #a76de8, #f4ecff);
+    .color-dot[data-theme="1"] {
+      background: radial-gradient(circle at 30% 30%, #f5fbff, #7fa5ff 55%, #182b5a 100%);
     }
-    .theme-emerald {
-      background-image: linear-gradient(135deg, #bff4cf, #3b8f63, #f3fff7);
+    .color-dot[data-theme="2"] {
+      background: radial-gradient(circle at 30% 30%, #faf4ff, #c59bff 55%, #4b266d 100%);
     }
-    .theme-rose {
-      background-image: linear-gradient(135deg, #ffd4e1, #f08ab1, #fff0f5);
+    .color-dot[data-theme="3"] {
+      background: radial-gradient(circle at 30% 30%, #f5fff8, #78d69a 55%, #0f3a25 100%);
+    }
+    .color-dot[data-theme="4"] {
+      background: radial-gradient(circle at 30% 30%, #fff5f8, #ff9fb5 55%, #7b2746 100%);
     }
 
     #webcam-wrapper,
@@ -271,12 +282,14 @@
         margin-right: 8px;
         font-size: 14px;
       }
-      #theme-switcher {
-        padding: 4px 8px;
+
+      #color-panel {
+        bottom: 16px;
+        padding: 6px 12px;
+        gap: 8px;
       }
-      .theme-btn {
-        width: 14px;
-        height: 14px;
+      .color-label {
+        display: none;  /* 手机上只留圆点 */
       }
     }
   </style>
@@ -330,16 +343,16 @@
           <span>SCATTER · 张开散成星海</span>
         </div>
       </div>
+    </div>
 
-      <div id="theme-switcher">
-        <div class="theme-label">COLORS</div>
-        <div class="theme-dots">
-          <button class="theme-btn theme-gold theme-active"   data-theme="0"></button>
-          <button class="theme-btn theme-ice"                 data-theme="1"></button>
-          <button class="theme-btn theme-purple"              data-theme="2"></button>
-          <button class="theme-btn theme-emerald"             data-theme="3"></button>
-          <button class="theme-btn theme-rose"                data-theme="4"></button>
-        </div>
+    <div id="color-panel">
+      <div class="color-label">COLORS</div>
+      <div class="color-dots">
+        <button class="color-dot active" data-theme="0" aria-label="Gold"></button>
+        <button class="color-dot" data-theme="1" aria-label="Blue"></button>
+        <button class="color-dot" data-theme="2" aria-label="Purple"></button>
+        <button class="color-dot" data-theme="3" aria-label="Green"></button>
+        <button class="color-dot" data-theme="4" aria-label="Pink"></button>
       </div>
     </div>
   </div>
@@ -349,8 +362,12 @@
     <canvas id="webcam-preview"></canvas>
   </div>
 
-  <!-- 你的本地 BGM（注意文件名要和仓库里的对应） -->
-  <audio id="bgm" loop src="./christmas-bgm.m4a"></audio>
+  <!-- 你录的 BGM，本地放在同级目录 -->
+  <audio
+    id="bgm"
+    loop
+    src="./christmas-bgm.m4a"
+  ></audio>
 
   <script type="module">
     import * as THREE from 'three';
@@ -363,163 +380,6 @@
       HandLandmarker,
       DrawingUtils
     } from '@mediapipe/tasks-vision';
-
-    /* ========= 主题配色 ========== */
-    const THEMES = [
-      // 1. 金色 · 柔和版
-      {
-        label: 'GOLD',
-        bg: 0x050309,
-        overlay: [
-          'rgba(40,32,18,0.60)',
-          'rgba(6,6,10,0.65)',
-          'rgba(90,55,24,0.55)'
-        ],
-        bulbA: 0xf7d58a,
-        bulbB: 0xfff3cf,
-        bulbEmissive: 0x604322,
-        accentA: 0xf8e9cf,
-        accentB: 0xe2c89a,
-        accentEmissive: 0x3e2914,
-        green: 0x14301c,
-        red: 0x8f3b32,
-        dust: 0xfff8e6,
-        garlandA: 0xf5e0b5,
-        garlandB: 0xe0c18d,
-        garlandEmissive: 0x6b4a26,
-        starA: 0xfff4ce,
-        starB: 0xffdd9a,
-        starEmissive: 0xe7b86a,
-        haloA: 0xffe2a0,
-        bgStarA: 0xc0c7df
-      },
-      // 2. 冰蓝白
-      {
-        label: 'ICE',
-        bg: 0x050914,
-        overlay: [
-          'rgba(46,86,140,0.45)',
-          'rgba(7,13,28,0.65)',
-          'rgba(18,56,120,0.55)'
-        ],
-        bulbA: 0xd7e5ff,
-        bulbB: 0xf7fbff,
-        bulbEmissive: 0x304a7a,
-        accentA: 0xf1f5ff,
-        accentB: 0xd0ddff,
-        accentEmissive: 0x23365a,
-        green: 0x142438,
-        red: 0x5c91ff,
-        dust: 0xf5f8ff,
-        garlandA: 0xd6e6ff,
-        garlandB: 0xadc5f5,
-        garlandEmissive: 0x3b5993,
-        starA: 0xf1f7ff,
-        starB: 0xc7ddff,
-        starEmissive: 0xa3c9ff,
-        haloA: 0xb9d5ff,
-        bgStarA: 0xa7baf5
-      },
-      // 3. 深紫
-      {
-        label: 'PURPLE',
-        bg: 0x090313,
-        overlay: [
-          'rgba(88,54,140,0.45)',
-          'rgba(20,10,40,0.65)',
-          'rgba(132,68,170,0.55)'
-        ],
-        bulbA: 0xdac4ff,
-        bulbB: 0xf5efff,
-        bulbEmissive: 0x4b377f,
-        accentA: 0xf0e0ff,
-        accentB: 0xd8c1ff,
-        accentEmissive: 0x3a275f,
-        green: 0x241634,
-        red: 0xc18fd9,
-        dust: 0xfaf3ff,
-        garlandA: 0xe4cffc,
-        garlandB: 0xcaadef,
-        garlandEmissive: 0x5b3b8d,
-        starA: 0xf8efff,
-        starB: 0xe0c5ff,
-        starEmissive: 0xcc9df7,
-        haloA: 0xe5c7ff,
-        bgStarA: 0xd0b9ff
-      },
-      // 4. 祖母绿
-      {
-        label: 'EMERALD',
-        bg: 0x040908,
-        overlay: [
-          'rgba(42,96,72,0.48)',
-          'rgba(5,18,14,0.65)',
-          'rgba(24,84,52,0.55)'
-        ],
-        bulbA: 0xc4f0d0,
-        bulbB: 0xf0fff7,
-        bulbEmissive: 0x29573f,
-        accentA: 0xe3ffe9,
-        accentB: 0xc0f2d3,
-        accentEmissive: 0x1f4130,
-        green: 0x144331,
-        red: 0xc0a47c,
-        dust: 0xf4fff9,
-        garlandA: 0xd3ffd7,
-        garlandB: 0xa8f3c2,
-        garlandEmissive: 0x3b7a52,
-        starA: 0xf4ffe9,
-        starB: 0xd1f7bf,
-        starEmissive: 0xb4f39a,
-        haloA: 0xc9ffb1,
-        bgStarA: 0xa2f3cf
-      },
-      // 5. 玫瑰粉
-      {
-        label: 'ROSE',
-        bg: 0x12040a,
-        overlay: [
-          'rgba(128,54,86,0.48)',
-          'rgba(20,10,18,0.65)',
-          'rgba(170,78,112,0.55)'
-        ],
-        bulbA: 0xf7c6d0,
-        bulbB: 0xfff1f5,
-        bulbEmissive: 0x7c4252,
-        accentA: 0xffe3eb,
-        accentB: 0xf3c3d0,
-        accentEmissive: 0x5b2b3a,
-        green: 0x3a1a25,
-        red: 0xe58aa5,
-        dust: 0xfff5f7,
-        garlandA: 0xffd1de,
-        garlandB: 0xf4a9c2,
-        garlandEmissive: 0x8d455a,
-        starA: 0xffedf2,
-        starB: 0xf5cede,
-        starEmissive: 0xf0a5bf,
-        haloA: 0xf5cede,
-        bgStarA: 0xf2b4cf
-      }
-    ];
-
-    const MATERIALS = {
-      goldMat: null,
-      champagneMat: null,
-      greenMat: null,
-      redMat: null,
-      dustMat: null,
-      garlandMats: [],
-      starMat: null
-    };
-    let bgStarMaterial = null;
-
-    let currentThemeIndex = 0;
-    let overlayTheme = {
-      top: THEMES[0].overlay[0],
-      mid: THEMES[0].overlay[1],
-      bottom: THEMES[0].overlay[2]
-    };
 
     const CONFIG = {
       colors: {
@@ -540,6 +400,70 @@
       }
     };
 
+    // 五套高阶配色
+    const THEMES = [
+      {
+        name: 'gold',
+        dustColor: 0xffffff,
+        bgStarColor: 0xbfc7da,
+        starColor: 0xfff3c0,
+        starEmissive: 0xffd890,
+        overlay: {
+          top: 'rgba(15, 10, 5, 0.75)',
+          mid: 'rgba(5, 4, 10, 0.35)',
+          bottom: 'rgba(40, 20, 10, 0.88)'
+        }
+      },
+      {
+        name: 'blue',
+        dustColor: 0xe6f0ff,
+        bgStarColor: 0x9fb8ff,
+        starColor: 0xf6fbff,
+        starEmissive: 0x93b5ff,
+        overlay: {
+          top: 'rgba(6, 15, 32, 0.80)',
+          mid: 'rgba(4, 8, 20, 0.40)',
+          bottom: 'rgba(9, 5, 18, 0.86)'
+        }
+      },
+      {
+        name: 'violet',
+        dustColor: 0xf7edff,
+        bgStarColor: 0xc7b3ff,
+        starColor: 0xfdf5ff,
+        starEmissive: 0xc99bff,
+        overlay: {
+          top: 'rgba(21, 9, 36, 0.80)',
+          mid: 'rgba(10, 4, 18, 0.40)',
+          bottom: 'rgba(9, 5, 18, 0.88)'
+        }
+      },
+      {
+        name: 'emerald',
+        dustColor: 0xe9fff4,
+        bgStarColor: 0xa8f0c9,
+        starColor: 0xf7fff7,
+        starEmissive: 0x7fdba4,
+        overlay: {
+          top: 'rgba(4, 20, 14, 0.78)',
+          mid: 'rgba(3, 10, 8, 0.38)',
+          bottom: 'rgba(6, 4, 10, 0.86)'
+        }
+      },
+      {
+        name: 'rose',
+        dustColor: 0xfff2f7,
+        bgStarColor: 0xffc0d6,
+        starColor: 0xfff6f9,
+        starEmissive: 0xffa6c0,
+        overlay: {
+          top: 'rgba(28, 3, 15, 0.80)',
+          mid: 'rgba(12, 4, 10, 0.38)',
+          bottom: 'rgba(6, 4, 10, 0.88)'
+        }
+      }
+    ];
+
     const STATE = {
       mode: 'TREE',
       hand: { detected: false, x: 0, y: 0 },
@@ -548,6 +472,10 @@
       time: 0,
       starMesh: null
     };
+
+    let currentThemeIndex = 0;
+    let overlayTheme = THEMES[0].overlay;
+    let snowflakeSprite = null;
 
     let scene, camera, renderer, composer;
     let mainGroup, starGroup, bgGroup;
@@ -564,61 +492,12 @@
     let overlayW = 0, overlayH = 0;
     let snowflakes = [];
     let bokehLights = [];
-    let snowflakeSprite = null;
 
-    function applyTheme(index) {
-      currentThemeIndex = index;
-      const t = THEMES[index];
-
-      if (scene) {
-        scene.background.setHex(t.bg);
-        if (scene.fog) scene.fog.color.setHex(t.bg);
-      }
-
-      overlayTheme = {
-        top: t.overlay[0],
-        mid: t.overlay[1],
-        bottom: t.overlay[2]
-      };
-
-      if (MATERIALS.goldMat) {
-        MATERIALS.goldMat.color.setHex(t.bulbA);
-        MATERIALS.goldMat.emissive.setHex(t.bulbEmissive);
-        MATERIALS.goldMat.needsUpdate = true;
-      }
-      if (MATERIALS.champagneMat) {
-        MATERIALS.champagneMat.color.setHex(t.accentA);
-        MATERIALS.champagneMat.emissive.setHex(t.accentEmissive);
-        MATERIALS.champagneMat.needsUpdate = true;
-      }
-      if (MATERIALS.greenMat) {
-        MATERIALS.greenMat.color.setHex(t.green);
-        MATERIALS.greenMat.needsUpdate = true;
-      }
-      if (MATERIALS.redMat) {
-        MATERIALS.redMat.color.setHex(t.red);
-        MATERIALS.redMat.needsUpdate = true;
-      }
-      if (MATERIALS.dustMat) {
-        MATERIALS.dustMat.color.setHex(t.dust);
-        MATERIALS.dustMat.needsUpdate = true;
-      }
-      MATERIALS.garlandMats.forEach((mat, idx) => {
-        const c = idx === 0 ? t.garlandA : t.garlandB;
-        mat.color.setHex(c);
-        mat.emissive.setHex(t.garlandEmissive);
-        mat.needsUpdate = true;
-      });
-      if (MATERIALS.starMat) {
-        MATERIALS.starMat.color.setHex(t.starA);
-        MATERIALS.starMat.emissive.setHex(t.starEmissive);
-        MATERIALS.starMat.needsUpdate = true;
-      }
-      if (bgStarMaterial) {
-        bgStarMaterial.color.setHex(t.bgStarA);
-        bgStarMaterial.needsUpdate = true;
-      }
-    }
+    // 需要随主题变化的材质
+    let dustMaterial;
+    let bgStarsMaterial;
+    let starMaterial;
+    let garlandMaterials = [];
 
     async function init() {
       initThree();
@@ -632,9 +511,9 @@
       setupPostProcessing();
       setupEvents();
       setupBGM();
-      setupThemeUI();
-      applyTheme(currentThemeIndex);
       initMediaPipe().catch(console.warn);
+
+      applyTheme(0);
 
       const loader = document.getElementById('loader');
       loader.style.opacity = 0;
@@ -666,7 +545,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.55; // 曝光稍微压一点
+      renderer.toneMappingExposure = 0.62;  // 曝光降低一点
       container.appendChild(renderer.domElement);
 
       bgGroup = new THREE.Group();
@@ -679,6 +558,53 @@
 
       starGroup = new THREE.Group();
       mainGroup.add(starGroup);
+    }
+
+    /* ============= 2D 叠加层（雾 + 雪花） ============= */
+
+    function createSnowflakeSprite() {
+      const size = 64;
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, size, size);
+
+      ctx.translate(size / 2, size / 2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.lineWidth = 1.4;
+      ctx.lineCap = 'round';
+
+      function drawArm() {
+        const len = 22;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, -len);
+        ctx.stroke();
+
+        const mid = -len * 0.45;
+        const end = -len * 0.8;
+
+        ctx.beginPath();
+        ctx.moveTo(0, mid);
+        ctx.lineTo(4, mid - 5);
+        ctx.moveTo(0, mid);
+        ctx.lineTo(-4, mid - 5);
+
+        ctx.moveTo(0, end);
+        ctx.lineTo(3, end - 4);
+        ctx.moveTo(0, end);
+        ctx.lineTo(-3, end - 4);
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < 6; i++) {
+        ctx.save();
+        ctx.rotate((Math.PI * 2 * i) / 6);
+        drawArm();
+        ctx.restore();
+      }
+
+      return c;
     }
 
     function initOverlay() {
@@ -694,18 +620,19 @@
       resizeOverlay();
       window.addEventListener('resize', resizeOverlay);
 
-      const snowCount = 110;
+      // 雪花数量更少、更小、更慢
+      const snowCount = 80;
       snowflakes = [];
       for (let i = 0; i < snowCount; i++) {
         snowflakes.push({
           x: Math.random() * overlayW,
           y: Math.random() * overlayH,
-          size: 10 + Math.random() * 22,
-          speed: 20 + Math.random() * 30,
+          size: 8 + Math.random() * 18,
+          speed: 15 + Math.random() * 25,
           drift: -20 + Math.random() * 40,
           phase: Math.random() * Math.PI * 2,
           rotation: Math.random() * Math.PI * 2,
-          spin: Math.random() * 0.5 - 0.25
+          spin: Math.random() * 0.4 - 0.2
         });
       }
 
@@ -716,7 +643,7 @@
           x: Math.random() * overlayW,
           y: Math.random() * overlayH,
           r: 140 + Math.random() * 140,
-          baseAlpha: 0.03 + Math.random() * 0.04,
+          baseAlpha: 0.02 + Math.random() * 0.025,
           phase: Math.random() * Math.PI * 2,
           driftX: -6 + Math.random() * 12,
           driftY: -4 + Math.random() * 8
@@ -731,13 +658,19 @@
       const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
+      // 渐变雾：整体透明度降低一档
       const grad = overlayCtx.createLinearGradient(0, 0, w, h);
       grad.addColorStop(0, overlayTheme.top);
       grad.addColorStop(0.4, overlayTheme.mid);
       grad.addColorStop(1, overlayTheme.bottom);
+
+      overlayCtx.save();
+      overlayCtx.globalAlpha = 0.45;
       overlayCtx.fillStyle = grad;
       overlayCtx.fillRect(0, 0, w, h);
+      overlayCtx.restore();
 
+      // 散景
       overlayCtx.save();
       overlayCtx.globalCompositeOperation = 'lighter';
       bokehLights.forEach(b => {
@@ -761,6 +694,7 @@
       });
       overlayCtx.restore();
 
+      // 雪花（用雪花 sprite）
       overlayCtx.save();
       const img = snowflakeSprite;
       snowflakes.forEach(s => {
@@ -780,12 +714,15 @@
           overlayCtx.rotate(s.rotation);
           const scale = s.size / img.width;
           overlayCtx.scale(scale, scale);
-          overlayCtx.globalAlpha =
-            0.6 + 0.4 * Math.sin(STATE.time * 1.5 + s.phase);
+
+          const baseAlpha = 0.28;
+          const flicker = 0.18 * Math.sin(STATE.time * 1.5 + s.phase);
+          overlayCtx.globalAlpha = baseAlpha + flicker;
+
           overlayCtx.drawImage(img, -img.width / 2, -img.height / 2);
           overlayCtx.restore();
         } else {
-          overlayCtx.fillStyle = 'rgba(255,255,255,0.9)';
+          overlayCtx.fillStyle = 'rgba(255,255,255,0.6)';
           overlayCtx.beginPath();
           overlayCtx.arc(s.x, s.y, s.size * 0.3, 0, Math.PI * 2);
           overlayCtx.fill();
@@ -794,54 +731,7 @@
       overlayCtx.restore();
     }
 
-    function createSnowflakeSprite() {
-      const size = 48;
-      const c = document.createElement('canvas');
-      c.width = c.height = size;
-      const ctx = c.getContext('2d');
-
-      ctx.clearRect(0, 0, size, size);
-      ctx.translate(size / 2, size / 2);
-      ctx.strokeStyle = 'rgba(255,255,255,0.98)';
-      ctx.lineWidth = 1.4;
-      ctx.lineCap = 'round';
-
-      const arms = 6;
-      const radius = size * 0.35;
-      const branchOffset = Math.PI / 8;
-
-      for (let i = 0; i < arms; i++) {
-        const angle = (Math.PI * 2 * i) / arms;
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-
-        ctx.beginPath();
-        ctx.moveTo(cos * radius * 0.12, sin * radius * 0.12);
-        ctx.lineTo(cos * radius, sin * radius);
-        ctx.stroke();
-
-        const baseR = radius * 0.55;
-        [baseR * 0.75, baseR].forEach(r => {
-          const bx = cos * r;
-          const by = sin * r;
-
-          ctx.beginPath();
-          ctx.moveTo(bx, by);
-          ctx.lineTo(
-            bx + Math.cos(angle + branchOffset) * radius * 0.25,
-            by + Math.sin(angle + branchOffset) * radius * 0.25
-          );
-          ctx.moveTo(bx, by);
-          ctx.lineTo(
-            bx + Math.cos(angle - branchOffset) * radius * 0.25,
-            by + Math.sin(angle - branchOffset) * radius * 0.25
-          );
-          ctx.stroke();
-        });
-      }
-
-      return c;
-    }
+    /* ============= Three.js 场景 ============= */
 
     function setupEnvironment() {
       const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -860,7 +750,7 @@
       bottomLight.position.set(0, -10, 10);
       mainGroup.add(bottomLight);
 
-      const spotGold = new THREE.SpotLight(0xfff0dd, 620);
+      const spotGold = new THREE.SpotLight(0xfff0dd, 820);
       spotGold.position.set(40, 60, 40);
       spotGold.angle = 0.4;
       spotGold.penumbra = 0.5;
@@ -868,7 +758,7 @@
       spotGold.distance = 200;
       scene.add(spotGold);
 
-      const spotBlue = new THREE.SpotLight(0x4455ff, 320);
+      const spotBlue = new THREE.SpotLight(0x4455ff, 380);
       spotBlue.position.set(-40, 10, -30);
       spotBlue.lookAt(0, 0, 0);
       scene.add(spotBlue);
@@ -878,7 +768,7 @@
       const renderScene = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.75,
+        0.85,
         0.35,
         1.0
       );
@@ -931,17 +821,15 @@
         'position',
         new THREE.BufferAttribute(positions, 3)
       );
-      const material = new THREE.PointsMaterial({
-        color: THEMES[currentThemeIndex].bgStarA,
+      bgStarsMaterial = new THREE.PointsMaterial({
+        color: THEMES[currentThemeIndex].bgStarColor,
         size: 0.9,
         transparent: true,
         opacity: 0.65,
         sizeAttenuation: true
       });
 
-      bgStarMaterial = material;
-
-      const points = new THREE.Points(geometry, material);
+      const points = new THREE.Points(geometry, bgStarsMaterial);
       bgGroup.add(points);
     }
 
@@ -1110,16 +998,10 @@
       });
 
       const dustGeo = new THREE.OctahedronGeometry(0.1, 0);
-      const dustMat = new THREE.MeshBasicMaterial({
-        color: 0xfffff2,
+      dustMaterial = new THREE.MeshBasicMaterial({
+        color: THEMES[currentThemeIndex].dustColor,
         blending: THREE.AdditiveBlending
       });
-
-      MATERIALS.goldMat = goldMat;
-      MATERIALS.champagneMat = champagneMat;
-      MATERIALS.greenMat = greenMat;
-      MATERIALS.redMat = redMat;
-      MATERIALS.dustMat = dustMat;
 
       for (let i = 0; i < CONFIG.particles.count; i++) {
         const rand = Math.random();
@@ -1158,7 +1040,7 @@
       }
 
       for (let i = 0; i < CONFIG.particles.dustCount; i++) {
-        const mesh = new THREE.Mesh(dustGeo, dustMat);
+        const mesh = new THREE.Mesh(dustGeo, dustMaterial);
         mesh.scale.setScalar(0.5 + Math.random());
         mainGroup.add(mesh);
         particleSystem.push(new Particle(mesh, 'DUST', true));
@@ -1168,7 +1050,7 @@
       mainGroup.add(photoMeshGroup);
     }
 
-    // 花环：圈有轻微倾斜 + 绕 Y 轴转
+    // 花环：圈保持基本水平 + 小倾斜；holder 只绕 Y 轴转
     function createGarlands() {
       const h = CONFIG.particles.treeHeight;
       const halfH = h / 2;
@@ -1200,7 +1082,7 @@
           opacity: 0.12
         });
 
-        MATERIALS.garlandMats.push(mat);
+        garlandMaterials.push(mat);
 
         const ring = new THREE.Mesh(geo, mat);
 
@@ -1217,22 +1099,22 @@
       });
     }
 
-    // 顶部雪花造型（六角星风格），一个尖朝上
+    // 顶部雪花顶饰：六角雪花形状
     function createStarTopper() {
-      const shape = new THREE.Shape();
-      const arms = 6;
+      const snowShape = new THREE.Shape();
       const outerR = 1.8;
-      const innerR = 0.7;
+      const innerR = 0.9;
+      const spikes = 6;
 
-      for (let i = 0; i < arms * 2; i++) {
+      for (let i = 0; i < spikes * 2; i++) {
         const r = i % 2 === 0 ? outerR : innerR;
-        const angle = (i / (arms * 2)) * Math.PI * 2 - Math.PI / 2;
+        const angle = (i * Math.PI) / spikes - Math.PI / 2;
         const x = Math.cos(angle) * r;
         const y = Math.sin(angle) * r;
-        if (i === 0) shape.moveTo(x, y);
-        else shape.lineTo(x, y);
+        if (i === 0) snowShape.moveTo(x, y);
+        else snowShape.lineTo(x, y);
       }
-      shape.closePath();
+      snowShape.closePath();
 
       const extrudeSettings = {
         depth: 0.5,
@@ -1242,25 +1124,24 @@
         bevelSegments: 4
       };
 
-      const starGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      const starGeo = new THREE.ExtrudeGeometry(snowShape, extrudeSettings);
       starGeo.center();
 
-      const starMat = new THREE.MeshPhysicalMaterial({
-        color: 0xfff3c0,
+      const theme = THEMES[currentThemeIndex];
+      starMaterial = new THREE.MeshPhysicalMaterial({
+        color: theme.starColor,
         metalness: 1.0,
         roughness: 0.12,
         clearcoat: 1.0,
         clearcoatRoughness: 0.05,
-        emissive: 0xffd890,
+        emissive: theme.starEmissive,
         emissiveIntensity: 0.9,
         reflectivity: 1.0
       });
 
-      MATERIALS.starMat = starMat;
-
-      const star = new THREE.Mesh(starGeo, starMat);
+      const star = new THREE.Mesh(starGeo, starMaterial);
       star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.2, 0);
-      star.rotation.set(0, Math.PI, 0); // 翻个面，避免之前那块白斑
+      star.rotation.set(0, Math.PI, 0);   // 上下翻好的那一面
       star.castShadow = true;
 
       const textureLoader = new THREE.TextureLoader();
@@ -1282,6 +1163,33 @@
       starGroup.add(star);
       STATE.starMesh = star;
     }
+
+    /* ============= 主题切换 ============= */
+
+    function applyTheme(index) {
+      currentThemeIndex = index;
+      const theme = THEMES[index];
+
+      overlayTheme = theme.overlay;
+
+      if (dustMaterial) {
+        dustMaterial.color.set(theme.dustColor);
+      }
+      if (bgStarsMaterial) {
+        bgStarsMaterial.color.set(theme.bgStarColor);
+      }
+      if (starMaterial) {
+        starMaterial.color.set(theme.starColor);
+        starMaterial.emissive.set(theme.starEmissive);
+      }
+
+      garlandMaterials.forEach(m => {
+        m.color.set(0xfff0c4);
+        m.emissiveIntensity = 0.14;
+      });
+    }
+
+    /* ============= 手势识别 ============= */
 
     async function initMediaPipe() {
       const vision = await FilesetResolver.forVisionTasks(
@@ -1397,6 +1305,8 @@
       }
     }
 
+    /* ============= 事件绑定 ============= */
+
     function setupEvents() {
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -1433,19 +1343,24 @@
         },
         { passive: true }
       );
+
+      // 颜色切换按钮
+      document
+        .querySelectorAll('.color-dot')
+        .forEach(btn => {
+          btn.addEventListener('click', () => {
+            const idx = Number(btn.dataset.theme);
+            applyTheme(idx);
+            document
+              .querySelectorAll('.color-dot')
+              .forEach(b =>
+                b.classList.toggle('active', b === btn)
+              );
+          });
+        });
     }
 
-    function setupThemeUI() {
-      const buttons = document.querySelectorAll('.theme-btn');
-      buttons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const idx = parseInt(btn.dataset.theme, 10);
-          applyTheme(idx);
-          buttons.forEach(b => b.classList.remove('theme-active'));
-          btn.classList.add('theme-active');
-        });
-      });
-    }
+    /* ============= BGM ============= */
 
     function setupBGM() {
       const bgm = document.getElementById('bgm');
@@ -1474,6 +1389,8 @@
         }
       });
     }
+
+    /* ============= 渲染循环 ============= */
 
     function animate() {
       requestAnimationFrame(animate);
