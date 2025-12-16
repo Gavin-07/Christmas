@@ -127,7 +127,7 @@
 
     #file-input { display: none; }
 
-    /* 左下角：只放 BGM + 文案 */
+    /* 左下角：BGM + 文案 */
     #bottom-left-panel {
       position: absolute;
       left: calc(16px + env(safe-area-inset-left));
@@ -233,7 +233,6 @@
       border-color: #fff;
     }
 
-    /* 渐变色调盘 */
     .theme-gold {
       background-image: linear-gradient(135deg, #f6d48a, #f1b65c, #fef2cf);
     }
@@ -360,6 +359,8 @@
       HandLandmarker,
       DrawingUtils
     } from '@mediapipe/tasks-vision';
+
+    const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
     /* ========= 主题配色 ========== */
     const THEMES = [
@@ -624,11 +625,18 @@
       animate();
     }
 
+    function setRendererPixelRatio() {
+      const dpr = window.devicePixelRatio || 1;
+      const maxDpr = IS_MOBILE ? 3.5 : 3;   // 移动端再高一点
+      const target = Math.min(dpr * (IS_MOBILE ? 1.1 : 1.0), maxDpr);
+      renderer.setPixelRatio(target);
+    }
+
     function initThree() {
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
       scene.background = new THREE.Color(CONFIG.colors.bg);
-      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.00015); // 更轻的雾
+      scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.00015);
 
       camera = new THREE.PerspectiveCamera(
         45,
@@ -639,16 +647,17 @@
       camera.position.set(0, 0, CONFIG.camera.z);
 
       renderer = new THREE.WebGLRenderer({
-        antialias: false,
+        antialias: true,      // 打开抗锯齿，让边缘更细腻
         powerPreference: 'high-performance',
         stencil: false,
         depth: true
       });
       renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3)); // 提高上限
+      setRendererPixelRatio();
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.44;
-      container.appendChild(renderer.domElement);
+      renderer.toneMappingExposure = 0.48;  // 略微提亮一点
+      const containerEl = document.getElementById('canvas-container');
+      containerEl.appendChild(renderer.domElement);
 
       bgGroup = new THREE.Group();
       scene.add(bgGroup);
@@ -848,9 +857,6 @@
       grad.addColorStop(0.7, 'rgba(255,230,170,0.35)');
       grad.addColorStop(1.0, 'rgba(255,230,170,0.0)');
 
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, size, size);
-
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
@@ -891,8 +897,8 @@
       const renderScene = new RenderPass(scene, camera);
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.7,
-        0.35,
+        0.65,   // 略微减一点 Bloom，提高“清晰感”
+        0.3,
         1.0
       );
       composer = new EffectComposer(renderer);
@@ -1274,7 +1280,7 @@
       star.rotation.set(0, Math.PI, 0);
       star.castShadow = true;
 
-      // 使用本地生成的 glow 纹理，不再请求 glow.png
+      // 使用本地生成的 glow 纹理，光晕略小、略柔
       const glowTex = createGlowTexture();
       const haloMat = new THREE.SpriteMaterial({
         map: glowTex,
@@ -1282,10 +1288,10 @@
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.26
+        opacity: 0.2     // 之前 0.26，稍微更轻一点
       });
       const halo = new THREE.Sprite(haloMat);
-      halo.scale.set(7, 7, 7);
+      halo.scale.set(5, 5, 5);   // 之前 7 → 光晕更小
       star.add(halo);
 
       starGroup.add(star);
@@ -1408,10 +1414,13 @@
 
     function setupEvents() {
       window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        composer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setSize(w, h);
+        setRendererPixelRatio();      // 旋转屏幕时重新按 DPR 设置清晰度
+        composer.setSize(w, h);
       });
 
       window.addEventListener('keydown', e => {
