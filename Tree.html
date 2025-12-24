@@ -17,7 +17,7 @@
       font-family: 'Times New Roman', serif;
     }
 
-    /* 背景雪花层（2D） */
+    /* Background snow layer (2D) */
     #bg-overlay {
       position: absolute;
       inset: 0;
@@ -36,7 +36,7 @@
       z-index: 1;
     }
 
-    /* 兼容新浏览器的动态高度，减少移动端错位 */
+    /* Better viewport height for modern mobile browsers */
     @supports (height: 100svh) {
       #canvas-container,
       #bg-overlay {
@@ -127,7 +127,7 @@
 
     #file-input { display: none; }
 
-    /* 左下角：BGM + 文案 */
+    /* Bottom-left: BGM + instructions */
     #bottom-left-panel {
       position: absolute;
       left: calc(16px + env(safe-area-inset-left));
@@ -195,7 +195,7 @@
       box-shadow: 0 0 10px rgba(212, 175, 55, 0.25);
     }
 
-    /* 右下角颜色盘 */
+    /* Theme panel bottom-right */
     #theme-panel {
       position: fixed;
       right: calc(16px + env(safe-area-inset-right));
@@ -249,7 +249,7 @@
       background-image: linear-gradient(135deg, #ffd4e1, #f08ab1, #fff0f5);
     }
 
-    /* 调试时可以改成右下角小窗口，正式版隐藏 */
+    /* Webcam preview is hidden visually, used only when needed */
     #webcam-wrapper,
     #webcam,
     #webcam-preview {
@@ -327,11 +327,15 @@
           <span class="inst-icon">🖐</span>
           <span>张开 · 散成星海</span>
         </div>
+        <div class="inst-item" style="opacity:0.8;">
+          <span class="inst-icon">📱</span>
+          <span>手机轻触屏幕一次以开启手势</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- 右下角颜色盘 -->
+  <!-- Theme palette on bottom-right -->
   <div id="theme-panel">
     <div class="theme-dots">
       <button class="theme-btn theme-gold theme-active" data-theme="0"></button>
@@ -362,8 +366,9 @@
     } from '@mediapipe/tasks-vision';
 
     const IS_MOBILE = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    /* ========= 主题配色 ========== */
+    /* ======== Theme definition ======== */
     const THEMES = [
       {
         label: 'GOLD',
@@ -519,13 +524,13 @@
         red: 0x880000
       },
       particles: {
-        count: IS_MOBILE ? 1900 : 2600,
-        dustCount: IS_MOBILE ? 1600 : 2300,
+        count: 2600,
+        dustCount: 2300,
         treeHeight: 28,
         treeRadius: 9
       },
       camera: {
-        z: IS_MOBILE ? 52 : 55
+        z: 55
       }
     };
 
@@ -554,6 +559,10 @@
     let snowflakes = [];
     let bokehLights = [];
     let snowflakeSprite = null;
+
+    let handTrackingStarted = false;
+    let lastVideoTime = -1;
+    let lastPredictTime = 0;
 
     function applyTheme(index) {
       currentThemeIndex = index;
@@ -617,7 +626,7 @@
       setupBGM();
       setupThemeUI();
       applyTheme(currentThemeIndex);
-      initMediaPipe().catch(console.warn);
+      setupHandTrackingAutoStart();
 
       const loader = document.getElementById('loader');
       loader.style.opacity = 0;
@@ -628,9 +637,8 @@
 
     function setRendererPixelRatio() {
       const dpr = window.devicePixelRatio || 1;
-      const maxDpr = IS_MOBILE ? 2.2 : 3;
-      const scale = IS_MOBILE ? 0.9 : 1.0;
-      const target = Math.min(dpr * scale, maxDpr);
+      const maxDpr = IS_MOBILE ? 3.0 : 3.0;
+      const target = Math.min(dpr * (IS_MOBILE ? 1.0 : 1.0), maxDpr);
       renderer.setPixelRatio(target);
     }
 
@@ -673,7 +681,7 @@
       mainGroup.add(starGroup);
     }
 
-    /* ========== 覆盖层：轻微暗角 + 雪花 ========== */
+    /* ======= Overlay: vignette + snow + bokeh ======= */
     function initOverlay() {
       overlayCanvas = document.getElementById('bg-overlay');
       overlayCtx = overlayCanvas.getContext('2d');
@@ -687,7 +695,7 @@
       resizeOverlay();
       window.addEventListener('resize', resizeOverlay);
 
-      const snowCount = IS_MOBILE ? 70 : 110;
+      const snowCount = 110;
       snowflakes = [];
       for (let i = 0; i < snowCount; i++) {
         snowflakes.push({
@@ -702,7 +710,7 @@
         });
       }
 
-      const bokehCount = IS_MOBILE ? 3 : 5;
+      const bokehCount = 5;
       bokehLights = [];
       for (let i = 0; i < bokehCount; i++) {
         bokehLights.push({
@@ -724,6 +732,7 @@
       const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
+      // Vignette
       overlayCtx.save();
       const vignette = overlayCtx.createRadialGradient(
         w / 2, h * 0.45, 0,
@@ -735,6 +744,7 @@
       overlayCtx.fillRect(0, 0, w, h);
       overlayCtx.restore();
 
+      // Bokeh lights
       overlayCtx.save();
       overlayCtx.globalCompositeOperation = 'lighter';
       bokehLights.forEach(b => {
@@ -758,6 +768,7 @@
       });
       overlayCtx.restore();
 
+      // Snow
       overlayCtx.save();
       const img = snowflakeSprite;
       snowflakes.forEach(s => {
@@ -840,6 +851,7 @@
       return c;
     }
 
+    /* Glow texture used for star halo */
     function createGlowTexture() {
       const size = 256;
       const canvas = document.createElement('canvas');
@@ -854,6 +866,9 @@
       grad.addColorStop(0.35, 'rgba(255,230,170,0.95)');
       grad.addColorStop(0.7, 'rgba(255,230,170,0.35)');
       grad.addColorStop(1.0, 'rgba(255,230,170,0.0)');
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
 
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace;
@@ -893,12 +908,10 @@
 
     function setupPostProcessing() {
       const renderScene = new RenderPass(scene, camera);
-      const bloomStrength = IS_MOBILE ? 0.55 : 0.65;
-      const bloomRadius = IS_MOBILE ? 0.25 : 0.3;
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        bloomStrength,
-        bloomRadius,
+        0.65,
+        0.3,
         1.0
       );
       composer = new EffectComposer(renderer);
@@ -1016,7 +1029,7 @@
           );
         }
 
-        let rScatter = this.isDust ? 15 + Math.random() * 25 : 10 + Math.random() * 15;
+        const rScatter = this.isDust ? 15 + Math.random() * 25 : 10 + Math.random() * 15;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         this.posScatter.set(
@@ -1297,7 +1310,40 @@
       STATE.starMesh = star;
     }
 
+    /* ===== Hand tracking (MediaPipe) ===== */
+
+    function setupHandTrackingAutoStart() {
+      // Desktop: start immediately
+      if (!IS_MOBILE) {
+        startHandTrackingOnce();
+        return;
+      }
+
+      // Mobile: wait for first user interaction (iOS requirement)
+      const handler = () => {
+        startHandTrackingOnce();
+      };
+      window.addEventListener('touchstart', handler, { once: true, passive: true });
+      window.addEventListener('click', handler, { once: true });
+    }
+
+    async function startHandTrackingOnce() {
+      if (handTrackingStarted) return;
+      handTrackingStarted = true;
+
+      try {
+        await initMediaPipe();
+      } catch (e) {
+        console.warn('Init MediaPipe failed:', e);
+      }
+    }
+
     async function initMediaPipe() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('getUserMedia is not supported in this browser.');
+        return;
+      }
+
       const vision = await FilesetResolver.forVisionTasks(
         'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
       );
@@ -1317,42 +1363,65 @@
       canvasCtx = canvasElement.getContext('2d');
       drawingUtils = new DrawingUtils(canvasCtx);
 
-      if (navigator.mediaDevices?.getUserMedia) {
-        try {
-          const videoConstraints = IS_MOBILE
-            ? {
-                facingMode: 'user',
-                width:  { ideal: 480, max: 480 },
-                height: { ideal: 360, max: 360 }
-              }
-            : {
-                facingMode: 'user',
-                width:  { ideal: 1280, max: 1280 },
-                height: { ideal: 720,  max: 720 }
-              };
+      try {
+        const videoConstraints = IS_MOBILE
+          ? {
+              facingMode: 'user',
+              width:  { ideal: 640, max: 640 },
+              height: { ideal: 480, max: 480 }
+            }
+          : {
+              facingMode: 'user',
+              width:  { ideal: 1280, max: 1280 },
+              height: { ideal: 720,  max: 720 }
+            };
 
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: videoConstraints
-          });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: videoConstraints
+        });
 
-          video.srcObject = stream;
-          video.addEventListener('loadeddata', () => {
+        video.srcObject = stream;
+
+        const startPredict = () => {
+          if (video.readyState >= 2) {
             predictWebcam();
-          });
-        } catch (e) {
-          console.warn('Webcam access denied', e);
-          alert('请允许摄像头权限以体验手势互动功能');
+          } else {
+            video.addEventListener('loadeddata', () => {
+              predictWebcam();
+            }, { once: true });
+          }
+        };
+
+        // iOS Safari sometimes needs explicit play()
+        if (IS_IOS) {
+          video.play().catch(err => {
+            console.warn('video.play() failed on iOS:', err);
+          }).finally(startPredict);
+        } else {
+          startPredict();
         }
+      } catch (e) {
+        console.warn('Webcam access denied or failed', e);
+        alert('摄像头无法访问，手势互动功能已关闭。可以继续欣赏星空圣诞树～');
       }
     }
 
-    let lastVideoTime = -1;
     async function predictWebcam() {
+      if (!video || !handLandmarker) return;
+
       const canvasElement = document.getElementById('webcam-preview');
       if (video.videoWidth && canvasElement.width !== video.videoWidth) {
         canvasElement.width = video.videoWidth;
         canvasElement.height = video.videoHeight;
       }
+
+      const now = performance.now();
+      const interval = IS_MOBILE ? 90 : 60; // ms between detections
+      if (now - lastPredictTime < interval) {
+        requestAnimationFrame(predictWebcam);
+        return;
+      }
+      lastPredictTime = now;
 
       if (lastVideoTime !== video.currentTime) {
         lastVideoTime = video.currentTime;
@@ -1361,11 +1430,12 @@
         if (handLandmarker) {
           result = handLandmarker.detectForVideo(
             video,
-            performance.now()
+            now
           );
         }
 
-        if (!IS_MOBILE) {
+        // Draw preview only on desktop for clarity
+        if (!IS_MOBILE && canvasCtx) {
           canvasCtx.save();
           canvasCtx.drawImage(
             video,
@@ -1426,6 +1496,8 @@
         STATE.mode = 'SCATTER';
       }
     }
+
+    /* ===== Events, theme, BGM ===== */
 
     function setupEvents() {
       window.addEventListener('resize', () => {
@@ -1498,7 +1570,7 @@
               updateLabel();
             })
             .catch(e => {
-              console.warn('BGM 播放失败（可能被浏览器阻止）：', e);
+              console.warn('BGM play failed (possibly blocked):', e);
             });
         } else {
           bgm.pause();
