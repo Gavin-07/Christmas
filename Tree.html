@@ -249,6 +249,7 @@
       background-image: linear-gradient(135deg, #ffd4e1, #f08ab1, #fff0f5);
     }
 
+    /* 调试时可以改成右下角小窗口，正式版隐藏 */
     #webcam-wrapper,
     #webcam,
     #webcam-preview {
@@ -518,13 +519,13 @@
         red: 0x880000
       },
       particles: {
-        count: 2600,
-        dustCount: 2300,
+        count: IS_MOBILE ? 1900 : 2600,
+        dustCount: IS_MOBILE ? 1600 : 2300,
         treeHeight: 28,
         treeRadius: 9
       },
       camera: {
-        z: 55
+        z: IS_MOBILE ? 52 : 55
       }
     };
 
@@ -627,8 +628,9 @@
 
     function setRendererPixelRatio() {
       const dpr = window.devicePixelRatio || 1;
-      const maxDpr = IS_MOBILE ? 3.5 : 3;   // 移动端再高一点
-      const target = Math.min(dpr * (IS_MOBILE ? 1.1 : 1.0), maxDpr);
+      const maxDpr = IS_MOBILE ? 2.2 : 3;
+      const scale = IS_MOBILE ? 0.9 : 1.0;
+      const target = Math.min(dpr * scale, maxDpr);
       renderer.setPixelRatio(target);
     }
 
@@ -647,7 +649,7 @@
       camera.position.set(0, 0, CONFIG.camera.z);
 
       renderer = new THREE.WebGLRenderer({
-        antialias: true,      // 打开抗锯齿，让边缘更细腻
+        antialias: true,
         powerPreference: 'high-performance',
         stencil: false,
         depth: true
@@ -655,7 +657,7 @@
       renderer.setSize(window.innerWidth, window.innerHeight);
       setRendererPixelRatio();
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 0.48;  // 略微提亮一点
+      renderer.toneMappingExposure = 0.48;
       const containerEl = document.getElementById('canvas-container');
       containerEl.appendChild(renderer.domElement);
 
@@ -685,7 +687,7 @@
       resizeOverlay();
       window.addEventListener('resize', resizeOverlay);
 
-      const snowCount = 110;
+      const snowCount = IS_MOBILE ? 70 : 110;
       snowflakes = [];
       for (let i = 0; i < snowCount; i++) {
         snowflakes.push({
@@ -700,7 +702,7 @@
         });
       }
 
-      const bokehCount = 5;
+      const bokehCount = IS_MOBILE ? 3 : 5;
       bokehLights = [];
       for (let i = 0; i < bokehCount; i++) {
         bokehLights.push({
@@ -722,7 +724,6 @@
       const w = overlayW, h = overlayH;
       overlayCtx.clearRect(0, 0, w, h);
 
-      // 轻微暗角
       overlayCtx.save();
       const vignette = overlayCtx.createRadialGradient(
         w / 2, h * 0.45, 0,
@@ -734,7 +735,6 @@
       overlayCtx.fillRect(0, 0, w, h);
       overlayCtx.restore();
 
-      // 散景
       overlayCtx.save();
       overlayCtx.globalCompositeOperation = 'lighter';
       bokehLights.forEach(b => {
@@ -758,7 +758,6 @@
       });
       overlayCtx.restore();
 
-      // 雪花
       overlayCtx.save();
       const img = snowflakeSprite;
       snowflakes.forEach(s => {
@@ -841,7 +840,6 @@
       return c;
     }
 
-    /* 顶部星星用的本地光晕纹理，替代外链 glow.png */
     function createGlowTexture() {
       const size = 256;
       const canvas = document.createElement('canvas');
@@ -895,10 +893,12 @@
 
     function setupPostProcessing() {
       const renderScene = new RenderPass(scene, camera);
+      const bloomStrength = IS_MOBILE ? 0.55 : 0.65;
+      const bloomRadius = IS_MOBILE ? 0.25 : 0.3;
       const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.65,   // 略微减一点 Bloom，提高“清晰感”
-        0.3,
+        bloomStrength,
+        bloomRadius,
         1.0
       );
       composer = new EffectComposer(renderer);
@@ -1280,7 +1280,6 @@
       star.rotation.set(0, Math.PI, 0);
       star.castShadow = true;
 
-      // 使用本地生成的 glow 纹理，光晕略小、略柔
       const glowTex = createGlowTexture();
       const haloMat = new THREE.SpriteMaterial({
         map: glowTex,
@@ -1288,10 +1287,10 @@
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         transparent: true,
-        opacity: 0.2     // 之前 0.26，稍微更轻一点
+        opacity: 0.2
       });
       const halo = new THREE.Sprite(haloMat);
-      halo.scale.set(5, 5, 5);   // 之前 7 → 光晕更小
+      halo.scale.set(5, 5, 5);
       star.add(halo);
 
       starGroup.add(star);
@@ -1299,53 +1298,53 @@
     }
 
     async function initMediaPipe() {
-  const vision = await FilesetResolver.forVisionTasks(
-    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
-  );
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
+      );
 
-  handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath:
-        'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-      delegate: IS_MOBILE ? 'CPU' : 'GPU'
-    },
-    runningMode: 'VIDEO',
-    numHands: 1
-  });
-
-  video = document.getElementById('webcam');
-  const canvasElement = document.getElementById('webcam-preview');
-  canvasCtx = canvasElement.getContext('2d');
-  drawingUtils = new DrawingUtils(canvasCtx);
-
-  if (navigator.mediaDevices?.getUserMedia) {
-    try {
-      const videoConstraints = IS_MOBILE
-        ? {
-            facingMode: 'user',
-            width:  { ideal: 640, max: 640 },
-            height: { ideal: 480, max: 480 }
-          }
-        : {
-            facingMode: 'user',
-            width:  { ideal: 1280, max: 1280 },
-            height: { ideal: 720,  max: 720 }
-          };
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints
+      handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath:
+            'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+          delegate: IS_MOBILE ? 'CPU' : 'GPU'
+        },
+        runningMode: 'VIDEO',
+        numHands: 1
       });
 
-      video.srcObject = stream;
-      video.addEventListener('loadeddata', () => {
-        predictWebcam();
-      });
-    } catch (e) {
-      console.warn('Webcam access denied', e);
-      alert('请允许摄像头权限以体验手势互动功能');
+      video = document.getElementById('webcam');
+      const canvasElement = document.getElementById('webcam-preview');
+      canvasCtx = canvasElement.getContext('2d');
+      drawingUtils = new DrawingUtils(canvasCtx);
+
+      if (navigator.mediaDevices?.getUserMedia) {
+        try {
+          const videoConstraints = IS_MOBILE
+            ? {
+                facingMode: 'user',
+                width:  { ideal: 480, max: 480 },
+                height: { ideal: 360, max: 360 }
+              }
+            : {
+                facingMode: 'user',
+                width:  { ideal: 1280, max: 1280 },
+                height: { ideal: 720,  max: 720 }
+              };
+
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: videoConstraints
+          });
+
+          video.srcObject = stream;
+          video.addEventListener('loadeddata', () => {
+            predictWebcam();
+          });
+        } catch (e) {
+          console.warn('Webcam access denied', e);
+          alert('请允许摄像头权限以体验手势互动功能');
+        }
+      }
     }
-  }
-}
 
     let lastVideoTime = -1;
     async function predictWebcam() {
@@ -1366,39 +1365,38 @@
           );
         }
 
-        // 只有 PC 端才画预览和骨架，手机端专心算手势就行
-if (!IS_MOBILE) {
-  canvasCtx.save();
-  canvasCtx.drawImage(
-    video,
-    0,
-    0,
-    canvasElement.width,
-    canvasElement.height
-  );
+        if (!IS_MOBILE) {
+          canvasCtx.save();
+          canvasCtx.drawImage(
+            video,
+            0,
+            0,
+            canvasElement.width,
+            canvasElement.height
+          );
 
-  if (result && result.landmarks && result.landmarks.length > 0) {
-    for (const landmarks of result.landmarks) {
-      drawingUtils.drawConnectors(
-        landmarks,
-        HandLandmarker.HAND_CONNECTIONS,
-        { color: '#d4af37', lineWidth: 3 }
-      );
-      drawingUtils.drawLandmarks(landmarks, {
-        color: '#ffffff',
-        lineWidth: 1,
-        radius: 3
-      });
-    }
-  }
-  canvasCtx.restore();
-}
+          if (result && result.landmarks && result.landmarks.length > 0) {
+            for (const landmarks of result.landmarks) {
+              drawingUtils.drawConnectors(
+                landmarks,
+                HandLandmarker.HAND_CONNECTIONS,
+                { color: '#d4af37', lineWidth: 3 }
+              );
+              drawingUtils.drawLandmarks(landmarks, {
+                color: '#ffffff',
+                lineWidth: 1,
+                radius: 3
+              });
+            }
+          }
+          canvasCtx.restore();
+        }
 
-if (result && result.landmarks && result.landmarks.length > 0) {
-  processGestures(result.landmarks[0]);
-} else {
-  STATE.hand.detected = false;
-}
+        if (result && result.landmarks && result.landmarks.length > 0) {
+          processGestures(result.landmarks[0]);
+        } else {
+          STATE.hand.detected = false;
+        }
       }
       requestAnimationFrame(predictWebcam);
     }
@@ -1436,7 +1434,7 @@ if (result && result.landmarks && result.landmarks.length > 0) {
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
-        setRendererPixelRatio();      // 旋转屏幕时重新按 DPR 设置清晰度
+        setRendererPixelRatio();
         composer.setSize(w, h);
       });
 
