@@ -169,7 +169,6 @@
     #instructions {
       color: rgba(255, 255, 255, 0.86);
       font-family: 'Cinzel', serif;
-      pointer-events: none;
       text-align: left;
     }
     .inst-item {
@@ -628,6 +627,19 @@
       applyTheme(currentThemeIndex);
       setupHandTrackingAutoStart();
 
+          // —— 左下角提示：支持自动隐藏 / 手动隐藏 —— 
+      const instEl = document.getElementById('instructions');
+  
+      // 8 秒后自动淡出
+      setTimeout(() => {
+        instEl.classList.add('instructions-hidden');
+      }, 8000);
+  
+      // 点一下立刻隐藏
+      instEl.addEventListener('click', () => {
+        instEl.classList.add('instructions-hidden');
+      });
+      
       const loader = document.getElementById('loader');
       loader.style.opacity = 0;
       setTimeout(() => loader.remove(), 1200);
