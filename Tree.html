@@ -138,9 +138,17 @@
       flex-direction: column;
       gap: 10px;
       align-items: flex-start;
+      transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+/* 新增：整块一起隐藏（音乐 + 提示） */
+      #bottom-left-panel.bottom-left-hidden {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
     }
 
-    #bgm-toggle {
+      #bgm-toggle {
       pointer-events: auto;
       border-radius: 999px;
       border: 1px solid rgba(212, 175, 55, 0.7);
@@ -634,18 +642,18 @@
       applyTheme(currentThemeIndex);
       setupHandTrackingAutoStart();
 
-          // —— 左下角提示：支持自动隐藏 / 手动隐藏 —— 
-      const instEl = document.getElementById('instructions');
-  
-      // 8 秒后自动淡出
+      // —— 左下角整块（音乐 + 提示）支持自动隐藏 / 手动隐藏 ——
+      const panelEl = document.getElementById('bottom-left-panel');
+
+// 8 秒后自动淡出整块面板
       setTimeout(() => {
-        instEl.classList.add('instructions-hidden');
-      }, 8000);
-  
-      // 点一下立刻隐藏
-      instEl.addEventListener('click', () => {
-        instEl.classList.add('instructions-hidden');
-      });
+  panelEl.classList.add('bottom-left-hidden');
+}, 8000);
+
+// 点一下左下角区域，立刻隐藏（只触发一次）
+      panelEl.addEventListener('click', () => {
+  panelEl.classList.add('bottom-left-hidden');
+}, { once: true });
       
       const loader = document.getElementById('loader');
       loader.style.opacity = 0;
